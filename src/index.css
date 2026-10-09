@@ -1,0 +1,225 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+/* The game canvases draw with these two by name, so they must be loaded
+   here rather than left to a CDN that the page may not be allowed to reach. */
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
+@custom-variant dark (&:is(.dark *));
+/* Landscape phones: overlays tighten up so nothing is clipped. */
+@custom-variant short (@media (max-height: 520px));
+
+/* ═══════════════════════════════════════════════════════════════════
+   GALAWGAW theme — shadcn tokens on a dark, camera-first palette.
+   The player colours mirror src/game/theme.js, which the canvases use;
+   change a colour there first, then here.
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.13 0.018 280);
+  --foreground: oklch(0.95 0.015 275);
+  --card: oklch(0.175 0.022 280);
+  --card-foreground: oklch(0.95 0.015 275);
+  --popover: oklch(0.19 0.024 280);
+  --popover-foreground: oklch(0.95 0.015 275);
+  --primary: oklch(0.84 0.15 176);
+  --primary-foreground: oklch(0.2 0.05 180);
+  --secondary: oklch(0.24 0.026 280);
+  --secondary-foreground: oklch(0.95 0.015 275);
+  --muted: oklch(0.22 0.022 280);
+  --muted-foreground: oklch(0.68 0.04 278);
+  --accent: oklch(0.26 0.03 280);
+  --accent-foreground: oklch(0.97 0.01 275);
+  --destructive: oklch(0.66 0.22 25);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.84 0.15 176 / 70%);
+
+  /* Game palette */
+  --p1: #22e6c8;
+  --p2: #ff4d8d;
+  --amber: #ffc247;
+  --danger: #ff4d4d;
+  --ice: #7fd8ff;
+  --violet: #a06bff;
+  --ink: #07070d;
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Geist Variable", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-p1: var(--p1);
+  --color-p2: var(--p2);
+  --color-amber: var(--amber);
+  --color-danger: var(--danger);
+  --color-ice: var(--ice);
+  --color-violet: var(--violet);
+  --color-ink: var(--ink);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    min-height: 100dvh;
+  }
+  /* While a game is up the page itself must not scroll, bounce or zoom. */
+  html[data-playing] {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  html[data-playing] body {
+    overflow: hidden;
+    touch-action: none;
+  }
+}
+
+/* ── Backdrop ──────────────────────────────────────────────────────── */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 36rem at 12% -10%, color-mix(in oklab, var(--p1) 16%, transparent), transparent 70%),
+    radial-gradient(50rem 32rem at 95% 0%, color-mix(in oklab, var(--p2) 13%, transparent), transparent 70%),
+    radial-gradient(40rem 30rem at 50% 110%, color-mix(in oklab, var(--violet) 10%, transparent), transparent 70%),
+    var(--background);
+}
+.app-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(oklch(1 0 0 / 7%) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, black, transparent 75%);
+}
+
+.text-gradient {
+  background: linear-gradient(100deg, var(--p1), var(--ice) 45%, var(--p2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ── Camera stage ──────────────────────────────────────────────────── */
+/* The feed is mirrored so it reads like a mirror; landmarks are flipped
+   to match in src/game/utils.js. */
+.stage-video {
+  transform: scaleX(-1);
+  object-fit: cover;
+  filter: saturate(0.82) contrast(1.06) brightness(0.86);
+}
+.stage-vignette {
+  background:
+    radial-gradient(ellipse at center, transparent 55%, oklch(0 0 0 / 55%)),
+    linear-gradient(to bottom, oklch(0 0 0 / 55%), transparent 22%, transparent 80%, oklch(0 0 0 / 45%));
+}
+
+/* Glass surfaces over the camera. Backdrop blur is full-screen compositing
+   work on every frame, so the overlays that sit on top of live play use a
+   plain translucent fill, and performance mode drops blur everywhere. */
+.glass {
+  background: color-mix(in oklab, var(--card) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+.glass-solid {
+  background: color-mix(in oklab, oklch(0.12 0.02 280) 82%, transparent);
+}
+.perf-low .stage-video { filter: none; }
+.perf-low .glass,
+.perf-low .scrim {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.perf-low .glass { background: color-mix(in oklab, var(--card) 94%, transparent); }
+
+.scrim {
+  background: oklch(0.08 0.02 280 / 62%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+@layer components {
+/* ── Life pips ─────────────────────────────────────────────────────── */
+.life {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 9999px;
+  background: var(--accent-color);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--accent-color) 70%, transparent);
+  transition: background-color 300ms, box-shadow 300ms, transform 300ms;
+}
+.life[data-spent] {
+  background: oklch(1 0 0 / 12%);
+  box-shadow: none;
+}
+.life[data-losing] { animation: life-out 900ms ease-out both; }
+@keyframes life-out {
+  0% { transform: scale(1); background: var(--accent-color); }
+  35% { transform: scale(1.8); background: var(--danger); box-shadow: 0 0 18px var(--danger); }
+  100% { transform: scale(1); }
+}
+}
+
+/* ── Rotate gate ───────────────────────────────────────────────────── */
+@media (orientation: portrait) and (max-width: 900px) {
+  html[data-playing] .rotate-gate { display: flex; }
+}
+@keyframes rotate-hint {
+  0%, 20% { transform: rotate(0deg); }
+  50%, 75% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes shimmer {
+  from { transform: translateX(-120%) skewX(-18deg); }
+  to { transform: translateX(320%) skewX(-18deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

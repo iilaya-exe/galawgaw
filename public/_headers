@@ -1,0 +1,8 @@
+# Netlify / Cloudflare Pages. Cross-origin isolation lets MediaPipe run its
+# WASM multi-threaded; see vite.config.ts for why COEP is credentialless.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

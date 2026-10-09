@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0b14" />
+    <title>GALAWGAW — Webcam Party Games</title>
+    <meta name="description" content="Ten two-player party games you control with your hands and body. Play in your browser with a webcam — nothing to install, and video never leaves your device." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="GALAWGAW — Webcam Party Games" />
+    <meta property="og:description" content="Ten two-player party games you control with your hands and body. Nothing to install." />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- A classic script, deliberately not a module: it still runs when the
+         app bundle is blocked outright, and turns a blank page into a
+         readable explanation. -->
+    <script>
+      (function () {
+        function panic(title, detail) {
+          var wrap = document.createElement("div");
+          wrap.setAttribute("style", "position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b0b14;color:#eceefe;font-family:system-ui,sans-serif");
+          wrap.innerHTML =
+            '<div style="max-width:520px;text-align:center">' +
+            '<div style="color:#ff4d8d;font-size:12px;letter-spacing:.2em;text-transform:uppercase">GALAWGAW</div>' +
+            '<h1 style="font-size:24px;margin:12px 0">' + title + "</h1>" +
+            '<p style="color:#9aa0c8;line-height:1.6;margin:0">' + detail + "</p></div>";
+          (document.body || document.documentElement).appendChild(wrap);
+        }
+        if (location.protocol === "file:") {
+          panic("This page must be served over http://", "Browsers block modules and camera access on file:// URLs. Run <b>npm run dev</b> and open the address it prints.");
+          return;
+        }
+        window.addEventListener("error", function (event) {
+          // Once the app is up it reports its own failures (camera, tracker
+          // CDN) in context, so this guard only covers a page that never started.
+          var root = document.getElementById("root");
+          if (root && root.childElementCount > 0) return;
+          var target = event.target;
+          if (target && (target.tagName === "SCRIPT" || target.tagName === "LINK")) {
+            panic("A required file failed to load", "Check your connection and reload the page.");
+          }
+        }, true);
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
