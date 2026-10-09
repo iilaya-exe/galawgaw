@@ -10,7 +10,7 @@
     <meta property="og:title" content="GALAWGAW — Webcam Party Games" />
     <meta property="og:description" content="Ten two-player party games you control with your hands and body. Nothing to install." />
     <meta name="twitter:card" content="summary" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   </head>
   <body>
     <div id="root"></div>
@@ -40,6 +40,11 @@
           if (root && root.childElementCount > 0) return;
           var target = event.target;
           if (target && (target.tagName === "SCRIPT" || target.tagName === "LINK")) {
+            // The unbuilt source was deployed: browsers cannot run .tsx.
+            if (/\.tsx?$/.test(target.src || "")) {
+              panic("This site has not been built", "The server is hosting the source code instead of the built site. Deploy the <b>dist/</b> folder from <b>npm run build</b> — on GitHub Pages, set Settings → Pages → Source to <b>GitHub Actions</b>.");
+              return;
+            }
             panic("A required file failed to load", "Check your connection and reload the page.");
           }
         }, true);

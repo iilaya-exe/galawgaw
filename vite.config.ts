@@ -16,6 +16,9 @@ const isolation = {
 };
 
 export default defineConfig({
+  // Relative asset URLs, so the same build works at a domain root and under
+  // a GitHub Pages project path like username.github.io/galawgaw/.
+  base: "./",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },

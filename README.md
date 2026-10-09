@@ -37,6 +37,18 @@ Camera access needs `https://` or `localhost`.
 
 ## Deploy
 
+### GitHub Pages
+
+`.github/workflows/deploy.yml` builds the site and publishes it on every
+push to `main`. One-time setup: **Settings → Pages → Build and deployment →
+Source: GitHub Actions**. Do not point Pages at the branch itself — the
+source must be built before a browser can run it.
+
+GitHub Pages cannot send the headers below, so tracking runs single-threaded
+there (playable, but slower on machines without GPU acceleration).
+
+### Other hosts
+
 `dist/` is a static site, so any static host works. Serve it with these two
 headers so MediaPipe can run multi-threaded (without them it still works,
 just slower):
