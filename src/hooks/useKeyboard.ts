@@ -16,9 +16,11 @@ function focusCard(step: number) {
   hoverSound();
 }
 
-export function useKeyboard() {
+export function useKeyboard(enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
     const onKey = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement).closest?.('input, textarea, [contenteditable="true"]')) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const key = event.key;
       const phase = useArcade.getState().phase;
@@ -53,5 +55,5 @@ export function useKeyboard() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, []);
+  }, [enabled]);
 }

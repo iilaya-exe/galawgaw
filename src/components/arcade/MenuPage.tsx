@@ -31,7 +31,7 @@ const STEPS = [
   {
     icon: Camera,
     title: "Allow your camera",
-    text: "Tracking runs right here in your browser. Video never leaves your device.",
+    text: "In same-screen games, tracking and video stay on your device. Online play shares movement and optionally live video.",
   },
   {
     icon: Users,
@@ -92,6 +92,7 @@ export function MenuPage({ hidden }: { hidden: boolean }) {
               split the screen, and play head to head or as a team.
             </motion.p>
             <motion.div variants={rise} initial="hidden" animate="show" custom={3} className="flex flex-wrap gap-3">
+              <Button size="lg" variant="outline" asChild><a href="#online"><Users />Play online</a></Button>
               <Button size="lg" onClick={startGauntlet} className="shadow-[0_10px_40px_-12px_var(--p1)]">
                 <Swords />
                 Start the Gauntlet

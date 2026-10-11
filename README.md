@@ -1,8 +1,23 @@
 # GALAWGAW
 
-Webcam party games for two players. Ten split-screen games controlled with
-your hands and body, tracked on-device with MediaPipe — no install, no
-backend, and camera frames never leave the browser.
+Webcam party games for two players. Ten same-screen games controlled with
+your hands and body, tracked on-device with MediaPipe. Same-screen play keeps
+camera frames in the browser. The new online Copy the Pose mode connects to
+the separate Galawgaw_Backend server for movement, rooms and scoring, with
+optional live camera sharing and opt-in cloud highlights.
+
+## Online development
+
+Run `npm install` and `npm run dev` in both repositories. Open
+`http://localhost:5173/#online`, create a private room and send its invite to
+a second browser tab. Camera access on another device requires HTTPS.
+The online prototype has four target poses; the original local game retains
+its expanded pose library.
+
+No cloud credentials are needed for local room and movement testing. For
+live video and highlights, follow `SETUP.md` in Galawgaw_Backend. Configure
+`VITE_API_URL` in `.env` locally or as a GitHub Actions repository variable
+for production builds. It is a public URL, not a secret.
 
 deybsuanwashere
 

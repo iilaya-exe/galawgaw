@@ -6,10 +6,26 @@ import { MenuPage } from "@/components/arcade/MenuPage";
 import { Stage } from "@/components/arcade/Stage";
 import { RotateGate } from "@/components/arcade/RotateGate";
 import { useKeyboard } from "@/hooks/useKeyboard";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { returnToMenu } from '@/engine/engine';
+import { startPreviews, stopPreviews } from '@/game/previews.js';
+
+const Online = lazy(() => import('./online/Online').then(module => ({ default: module.Online })));
+const isOnline = () => location.hash === '#online' || new URLSearchParams(location.search).has('room') || new URLSearchParams(location.search).has('clip');
 
 export default function App() {
   const inGame = useArcade((s) => s.phase !== "menu");
-  useKeyboard();
+  const [online, setOnline] = useState(isOnline);
+  useEffect(() => { const change = () => setOnline(isOnline()); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change); }, []);
+  useKeyboard(!online);
+  useEffect(() => {
+    if (online) {
+      if (useArcade.getState().phase !== 'menu') returnToMenu();
+      stopPreviews();
+    } else startPreviews('menu');
+  }, [online]);
+
+  if (online) return <Suspense fallback={<div role="status" className="p-12 text-center">Opening online play…</div>}><Online /></Suspense>;
 
   return (
     <MotionConfig reducedMotion="user">
