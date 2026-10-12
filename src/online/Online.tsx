@@ -215,8 +215,9 @@ function OnlineGame() {
 }
 
 function Clip({ id, token, share }: { id: string; token?: string; share?: string }) {
-  const [clip, setClip] = useState<{ status: string; url?: string }>({ status: 'queued' });
+  const [clip, setClip] = useState<{ status: string; url?: string; message?: string }>({ status: 'queued' });
   const [message, setMessage] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
   useEffect(() => {
     let cancelled = false; let timer: ReturnType<typeof setTimeout>; const started = Date.now();
     const poll = async () => {
@@ -230,7 +231,7 @@ function Clip({ id, token, share }: { id: string; token?: string; share?: string
       else setMessage('Still processing. Keep this page URL and check back later.');
     };
     void poll(); return () => { cancelled = true; clearTimeout(timer); };
-  }, [id, token, share]);
+  }, [id, token, share, retryKey]);
   async function shareClip() {
     try {
       const data = await api<{ share: string }>(`/clips/${id}/share`, token, {});
@@ -239,8 +240,15 @@ function Clip({ id, token, share }: { id: string; token?: string; share?: string
       else { await navigator.clipboard.writeText(url); setMessage('Share link copied.'); }
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Could not share.'); }
   }
+  async function retryClip() {
+    try {
+      await api(`/clips/${id}/retry`, token, {});
+      setClip({ status: 'queued' }); setMessage('Retry started. This can take a few minutes.'); setRetryKey(key => key + 1);
+    } catch (e) { setMessage(e instanceof Error ? e.message : 'Could not retry the highlight.'); }
+  }
   return <section className="online-clip"><h2>Your match, the short version.</h2>
-    {clip.url ? <><video controls playsInline src={clip.url} /><div className="online-media-buttons"><a href={clip.url} target="_blank" rel="noreferrer">Open / save MP4</a>{token && !share && <><button onClick={() => void shareClip()}>Share highlight</button><button onClick={() => void api(`/clips/${id}/share`, token, undefined, 'DELETE').then(() => setMessage('Share link disabled.')).catch(e => setMessage(e.message))}>Disable share link</button></>}</div></> : <p>{clip.status === 'failed' ? 'The highlight could not be rendered.' : clip.status === 'no-recording' ? 'This match was not recorded.' : 'Making your highlight… You can keep playing.'}</p>}
+    {clip.url ? <><video controls playsInline src={clip.url} /><div className="online-media-buttons"><a href={clip.url} target="_blank" rel="noreferrer">Open / save MP4</a>{token && !share && <><button onClick={() => void shareClip()}>Share highlight</button><button onClick={() => void api(`/clips/${id}/share`, token, undefined, 'DELETE').then(() => setMessage('Share link disabled.')).catch(e => setMessage(e.message))}>Disable share link</button></>}</div></> : <p>{clip.status === 'failed' ? clip.message || 'The highlight could not be rendered.' : clip.status === 'no-recording' ? 'This match was not recorded.' : 'Making your highlight… You can keep playing.'}</p>}
+    {clip.status === 'failed' && token && !share && <button onClick={() => void retryClip()}>Retry highlight</button>}
     {message && <p role="status">{message}</p>}
   </section>;
 }
