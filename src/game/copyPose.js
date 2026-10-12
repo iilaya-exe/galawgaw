@@ -150,7 +150,8 @@ export function createCopyPose() {
         const originX = left ? 0 : half;
         const centerX = originX + half / 2;
         const accent = left ? C.p1 : C.p2;
-        const wallY = 44 + player.progress * (dangerY - 74);
+        // Keep the entire target (including raised hands) inside short boards.
+        const wallY = 70 + player.progress * Math.max(0, dangerY - 144);
         const urgency = player.progress;
 
         if (player.landmarks) {

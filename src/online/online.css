@@ -14,6 +14,27 @@
 .online p { color:#b2bfd5; line-height:1.65; }
 .online-entry { max-width:550px; margin:50px auto; display:flex; flex-direction:column; gap:20px; }
 .online-entry h1 { font-size:clamp(42px,7vw,76px); }
+.online select { width:100%; background:#131c2d; color:white; border:1px solid #34405a; padding:14px; border-radius:10px; }
+.online-stage { max-width:1400px; margin:20px auto; background:#101725; border-radius:16px; padding:12px; }
+.online-board { position:relative; width:100%; background:#080d19; overflow:hidden; border-radius:12px; }
+.online-board canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.online-stage-cameras { position:absolute; inset:0; display:flex; }
+.online-stage-camera { position:relative; width:50%; height:100%; }
+.online-stage-camera video { width:100%; height:100%; object-fit:cover; transform:scaleX(-1); opacity:.65; }
+.online-stage-camera>span { position:absolute; bottom:4px; left:8px; color:white; background:#080d19bb; font-size:11px; padding:3px 8px; }
+.online-game-hud { display:flex; justify-content:space-between; gap:16px; padding:4px 8px 12px; }
+.online-game-hud>div { display:flex; flex-direction:column; min-width:0; }
+.online-game-hud>div:nth-child(2) { text-align:center; }
+.online-game-hud>div:last-child { text-align:right; }
+.online-game-hud span,.online-game-hud small { font-size:12px; color:#9baac5; }
+.online-game-hud strong { font-size:28px; color:#22e6c8; }
+.online-stage-shared .online-stage-cameras { inset:8px 8px auto auto; width:35%; height:18%; z-index:1; opacity:.8; }
+.online-stage-shared .online-stage-camera>span { display:none; }
+.online-stage:fullscreen { border-radius:0; max-width:none; display:flex; flex-direction:column; justify-content:center; }
+.online-stage:fullscreen .online-board { max-height:80vh; width:auto; }
+.online-instructions { text-align:left; padding-left:24px; list-style:decimal; color:#b2bfd5; }
+.online-results { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:24px; }
+.online-results li { display:flex; flex-direction:column; gap:6px; }
 .online label { display:flex; flex-direction:column; gap:8px; font-size:14px; }
 .online input:not([type=checkbox]),.online textarea { background:#131c2d; border:1px solid #34405a; padding:14px; border-radius:10px; color:white; min-width:0; }
 .online-join { display:flex; gap:10px; }.online-join input { flex:1; }

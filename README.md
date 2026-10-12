@@ -2,7 +2,7 @@
 
 Webcam party games for two players. Ten same-screen games controlled with
 your hands and body, tracked on-device with MediaPipe. Same-screen play keeps
-camera frames in the browser. The new online Copy the Pose mode connects to
+camera frames in the browser. Online play supports all ten games and connects to
 the separate Galawgaw_Backend server for movement, rooms and scoring, with
 optional live camera sharing and opt-in cloud highlights.
 
@@ -11,8 +11,14 @@ optional live camera sharing and opt-in cloud highlights.
 Run `npm install` and `npm run dev` in both repositories. Open
 `http://localhost:5173/#online`, create a private room and send its invite to
 a second browser tab. Camera access on another device requires HTTPS.
-The online prototype has four target poses; the original local game retains
-its expanded pose library.
+Choose a game before creating a room or finding a public opponent. Joining an
+invite uses the host's game. The server runs the same game modules as local play,
+including Copy the Pose's expanded library and the two cooperative games.
+
+After changing `src/game`, run `node scripts/sync-games.mjs` in the backend repo
+to update its vendored rules. Both deployments share online protocol version 2.
+Deploy the backend and highlight worker before the frontend; the online page
+will explain a version mismatch instead of trying to play incompatible rules.
 
 No cloud credentials are needed for local room and movement testing. For
 live video and highlights, follow `SETUP.md` in Galawgaw_Backend. Configure

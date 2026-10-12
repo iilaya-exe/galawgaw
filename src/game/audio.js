@@ -12,6 +12,7 @@ function readMuted() {
 }
 
 function ensure() {
+  if (typeof window === "undefined") return null;
   if (ac) return ac;
   const Ctor = window.AudioContext || window.webkitAudioContext;
   if (!Ctor) return null;

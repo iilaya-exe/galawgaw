@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Client, type Room as GameRoom } from '@colyseus/sdk';
 import { Room as VideoRoom, RoomEvent, Track } from 'livekit-client';
-import { api, API, type Snapshot, type OnlinePlayer, type Point } from './api';
+import { api, API, type Snapshot, type OnlineGameMeta } from './api';
 import { openCamera } from './camera';
+import { GameStage } from './GameStage';
+import { ONLINE_PROTOCOL } from '../game/onlineProtocol.js';
+import { unlock } from '../game/audio.js';
 import './online.css';
 
 type Guest = { token: string; id: string; name: string };
@@ -29,7 +32,10 @@ function OnlineGame() {
   const [mic, setMic] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [connection, setConnection] = useState('');
-  const [features, setFeatures] = useState({ publicPlay: false });
+  const [features, setFeatures] = useState<{ publicPlay: boolean; protocol?: number; games: OnlineGameMeta[] }>({ publicPlay: false, games: [] });
+  const [gameId, setGameId] = useState('copypose');
+  const selectedGame = features.games.find(g => g.id === gameId);
+  const compatible = features.protocol === ONLINE_PROTOCOL;
   const [mediaVersion, setMediaVersion] = useState(0);
   const [lastHighlight, setLastHighlight] = useState(savedHighlight);
   const [report, setReport] = useState(false);
@@ -49,6 +55,8 @@ function OnlineGame() {
   const me = snapshot?.players.find(p => p.id === guest?.id);
   const opponent = snapshot?.players.find(p => p.id !== guest?.id);
 
+  useEffect(() => { if (snapshot?.roomId) window.scrollTo(0, 0); }, [snapshot?.roomId]);
+
   const clean = () => {
     cameraAbort.current?.abort(); cameraAbort.current = null;
     camera.current?.close(); camera.current = null;
@@ -58,7 +66,11 @@ function OnlineGame() {
   };
   useEffect(() => {
     alive.current = true;
-    api<typeof features>('/config').then(setFeatures).catch(e => setError(e.message));
+    api<typeof features>('/config').then(data => {
+      if (!alive.current) return;
+      setFeatures({ ...data, games: data.games || [] });
+      if (data.protocol !== ONLINE_PROTOCOL) setError('The game server needs the latest update before this version can play online.');
+    }).catch(e => setError(e.message));
     return () => { alive.current = false; clean(); };
   }, []);
   useEffect(() => {
@@ -76,6 +88,7 @@ function OnlineGame() {
 
   async function join(mode: 'private' | 'join' | 'public') {
     if (joining.current) return;
+    unlock();
     joining.current = true; setBusy(true); setError('');
     try {
       let identity = guest;
@@ -84,11 +97,14 @@ function OnlineGame() {
         setGuest(identity);
         try { sessionStorage.setItem('galawgaw.guest', JSON.stringify(identity)); } catch { /* tab still works */ }
       }
-      const { reservation } = await api<{ reservation: Parameters<Client['consumeSeatReservation']>[0] }>('/rooms', identity.token, { mode, ...(mode === 'join' ? { code: code.trim().toUpperCase() } : {}) });
+      const { reservation } = await api<{ reservation: Parameters<Client['consumeSeatReservation']>[0] }>('/rooms', identity.token, { mode, gameId, ...(mode === 'join' ? { code: code.trim().toUpperCase() } : {}) });
       const joined = await new Client(API).consumeSeatReservation(reservation);
       if (!alive.current) { await joined.leave(); return; }
       room.current = joined;
-      joined.onMessage('snapshot', (state: Snapshot) => { if (room.current === joined) setSnapshot(state); });
+      joined.onMessage('snapshot', (state: Snapshot) => {
+        if (state.protocol !== ONLINE_PROTOCOL) { leave(); setError('The room uses a different game version. Refresh and try again.'); return; }
+        if (room.current === joined) setSnapshot(state);
+      });
       joined.onMessage('notice', (message: string) => setError(message));
       joined.onLeave(() => { if (room.current === joined) { clean(); setSnapshot(null); setCameraReady(false); setConnection(''); setError('Disconnected from the room. Join again to play.'); } });
       joined.onError((_code, message) => setError(message || 'Connection problem.'));
@@ -108,10 +124,10 @@ function OnlineGame() {
     const abort = new AbortController(); cameraAbort.current = abort;
     const activeRoom = room.current;
     try {
-      const device = await openCamera(localVideo.current, abort.signal, (points, aspect) => {
-        setTracked(!!points && [11, 12, 15, 16, 23, 24].every(i => points[i].visibility >= .5));
-        if (room.current === activeRoom && activeRoom?.connection.isOpen) activeRoom.send('input', { landmarks: points, aspect, sequence: sequence.current++ });
-      });
+      const device = await openCamera(localVideo.current, abort.signal, (points, aspect, hands) => {
+        setTracked(snapshot.game.mode === 'hand' ? hands.length > 0 : !!points && [11, 12, 15, 16, 23, 24].every(i => points[i].visibility >= .35));
+        if (room.current === activeRoom && activeRoom?.connection.isOpen) activeRoom.send('input', { landmarks: points, hands, aspect, sequence: sequence.current++ });
+      }, snapshot.game.mode, snapshot.game.hands);
       camera.current = device;
       if (snapshot.mediaEnabled) {
         const credentials = await api<{ url: string; token: string }>(`/rooms/${snapshot.roomId}/media`, guest.token, {});
@@ -151,41 +167,44 @@ function OnlineGame() {
   }
 
   return <main className="online">
-    <header><button className="online-brand" onClick={() => { leave(); exitOnline(); }}>GALAWGAW</button><span>ONLINE / COPY THE POSE</span>{snapshot && <button onClick={leave}>Leave room</button>}</header>
+    <header><button className="online-brand" onClick={() => { leave(); exitOnline(); }}>GALAWGAW</button><span>ONLINE / {snapshot?.game.title.toUpperCase() || 'ALL GAMES'}</span>{snapshot && <button onClick={leave}>Leave room</button>}</header>
     {error && <div role="alert" className="online-error">{error}<button aria-label="Dismiss message" onClick={() => setError('')}>×</button></div>}
     {!snapshot ? <section className="online-entry">
-      <p className="online-eyebrow">Different rooms. Same ridiculous moves.</p><h1>Bring a friend.<br /><em>Strike a pose.</em></h1>
-      <p>Copy the targets, hold each pose, and outscore your friend in 40 seconds.</p>
+      <p className="online-eyebrow">Different rooms. Same ridiculous moves.</p><h1>Bring a friend.<br /><em>Pick your game.</em></h1>
+      <p>Compete or team up across the whole arcade. Pick a game, then invite a friend or find a player.</p>
+      <label>Choose a game<select value={gameId} onChange={e => setGameId(e.target.value)} disabled={busy || !compatible}>
+        {features.games.map(g => <option key={g.id} value={g.id}>{g.icon} {g.title} · {g.coop ? 'Co-op' : 'Versus'}</option>)}
+      </select></label>
+      {selectedGame && <p>{selectedGame.blurb} <span className="online-fine">{selectedGame.mode === 'hand' ? 'Hand tracking' : 'Body tracking'}</span></p>}
       <label>Your name<input maxLength={24} value={name} disabled={!!guest} onChange={e => setName(e.target.value)} placeholder="What should we call you?" /></label>
       {guest && <button className="online-link" onClick={() => { setGuest(null); sessionStorage.removeItem('galawgaw.guest'); }}>Change name</button>}
-      <button className="online-primary" disabled={busy || !name.trim()} onClick={() => void join('private')}>{busy ? 'Connecting…' : 'Create a private room'}</button>
-      <div className="online-join"><input aria-label="Room code" maxLength={12} value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="12-character room code" /><button disabled={busy || code.trim().length !== 12 || !name.trim()} onClick={() => void join('join')}>Join friend</button></div>
-      {features.publicPlay && <button disabled={busy || !name.trim()} onClick={() => void join('public')}>Find a player</button>}
+      <button className="online-primary" disabled={busy || !name.trim() || !compatible} onClick={() => void join('private')}>{busy ? 'Connecting…' : 'Create a private room'}</button>
+      <div className="online-join"><input aria-label="Room code" maxLength={12} value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="12-character room code" /><button disabled={busy || code.trim().length !== 12 || !name.trim() || !compatible} onClick={() => void join('join')}>Join friend</button></div>
+      {code && <p className="online-fine">Joining a code uses the host’s chosen game.</p>}
+      {features.publicPlay && <button disabled={busy || !name.trim() || !compatible} onClick={() => void join('public')}>Find a player for {selectedGame?.title}</button>}
       {lastHighlight && <a href={`?clip=${lastHighlight}#online`}>Open your last highlight</a>}
       <p className="online-fine">Online movement data is sent to the game server. When live cameras are enabled, your video is shared with the other player. Recording starts only if both players opt in.</p>
       <button className="online-link" onClick={exitOnline}>Back to same-screen games</button>
     </section> : <>
-      <section className="online-room-head"><div><p className="online-eyebrow">{snapshot.public ? 'PUBLIC ROOM' : `PRIVATE ROOM · ${snapshot.roomId}`}</p><h1>{snapshot.phase === 'over' ? (snapshot.winner === null ? 'A very stylish draw.' : `${snapshot.players[snapshot.winner].name} wins!`) : snapshot.phase === 'paused' ? 'Waiting for your friend to reconnect…' : snapshot.phase === 'aborted' ? 'The match ended early.' : 'Copy the pose.'}</h1></div>
+      <section className="online-room-head"><div><p className="online-eyebrow">{snapshot.public ? 'PUBLIC ROOM' : `PRIVATE ROOM · ${snapshot.roomId}`} · {snapshot.game.coop ? 'CO-OP' : 'VERSUS'}</p><h1>{snapshot.phase === 'over' ? (snapshot.game.coop ? snapshot.result?.title : snapshot.winner === null ? 'A draw!' : `${snapshot.players[snapshot.winner].name} wins!`) : snapshot.phase === 'paused' ? 'Waiting for your friend to reconnect…' : snapshot.phase === 'aborted' ? 'The match ended early.' : snapshot.game.title}</h1></div>
         <div className="online-status">{snapshot.recording && <span className="online-recording">● Recording</span>}<span>{connection}</span>{!snapshot.public && <button onClick={() => void copyInvite()}>Copy invite</button>}</div>
       </section>
-      <div className="online-players">
-        <PlayerTile player={me} local videoRef={localVideo} points={me?.landmarks} />
-        <PlayerTile player={opponent} videoRef={remoteVideo} points={opponent?.landmarks} />
-      </div>
+      <GameStage snapshot={snapshot} guestId={guest?.id} localVideo={localVideo} remoteVideo={remoteVideo} />
       <section className="online-controls">
         {snapshot.phase === 'lobby' && <>
-          <p>{!opponent ? 'Share your room code and wait for a friend.' : 'Both players: step back until your upper body and hands fit in the camera.'}</p>
+          <p>{!opponent ? snapshot.public ? 'Waiting for someone who picked this game…' : 'Share your room code and wait for a friend.' : snapshot.game.mode === 'hand' ? 'Raise your hands so the camera can see them.' : 'Step back until your upper body and hands fit in the camera.'}</p>
+          <ol className="online-instructions">{snapshot.game.tutorial.map(t => <li key={t}>{t}</li>)}</ol>
           {!cameraReady && <button className="online-primary" disabled={cameraBusy} onClick={() => void enableCamera()}>{cameraBusy ? 'Starting camera and tracking…' : snapshot.mediaEnabled ? 'Enable & share my camera' : 'Enable my camera'}</button>}
-          {cameraReady && <p>{tracked ? '✓ Body tracked. You’re ready.' : 'Step into frame with your hands and hips visible.'}</p>}
+          {cameraReady && <p>{tracked ? '✓ Movement tracked. You’re ready.' : snapshot.game.mode === 'hand' ? 'Show your hands to the camera.' : 'Step into frame with your hands and hips visible.'}</p>}
           {snapshot.highlightsEnabled && <label className="online-consent"><input type="checkbox" checked={consent} disabled={me?.ready} onChange={e => setConsent(e.target.checked)} />Allow recording of my camera and enabled microphone for a highlight that either player can share. Raw footage expires after 24 hours; highlights after 30 days.</label>}
           {!snapshot.mediaEnabled && <p className="online-fine">Live cameras are not connected on this server. You’ll see your friend’s tracked movements instead.</p>}
           {cameraReady && <button className="online-primary" disabled={!tracked || !opponent} onClick={() => room.current?.send('ready', { ready: !me?.ready, recordingConsent: consent })}>{me?.ready ? 'Ready — click to cancel' : 'I’m ready'}</button>}
         </>}
         {snapshot.phase === 'preparing' && <p>Preparing the match{consent ? ' and recordings' : ''}…</p>}
         {snapshot.phase === 'countdown' && <strong className="online-countdown">{Math.max(1, Math.ceil((snapshot.startedAt - snapshot.serverNow) / 1000))}</strong>}
-        {snapshot.phase === 'playing' && <><strong className="online-timer">{Math.ceil(snapshot.remaining / 1000)}s</strong><p>Hold each pose until the meter fills.</p></>}
+        {snapshot.phase === 'playing' && <p>{snapshot.game.blurb}</p>}
         {cameraReady && snapshot.mediaEnabled && <div className="online-media-buttons"><button onClick={() => void toggleMic()}>{mic ? 'Mute microphone' : 'Enable microphone'}</button>{!audioEnabled && <button onClick={() => void media.current?.startAudio().then(() => setAudioEnabled(true))}>Enable sound</button>}</div>}
-        {snapshot.phase === 'over' && <><p>{me?.score ?? 0} poses matched · {me?.misses ?? 0} missed</p>{snapshot.highlightsEnabled && me?.recordingConsent && opponent?.recordingConsent && <Clip id={snapshot.matchId} token={guest!.token} />}<button onClick={leave}>Play another match</button></>}
+        {snapshot.phase === 'over' && <><ul className="online-results">{snapshot.result?.rows.map((row, i) => <li key={i}><strong>{snapshot.game.coop ? row.tag : snapshot.players[i]?.name}: {row.value}</strong><span>{row.text}</span></li>)}</ul>{snapshot.highlightsEnabled && me?.recordingConsent && opponent?.recordingConsent && <Clip id={snapshot.matchId} token={guest!.token} />}<button onClick={leave}>Choose another game</button></>}
         {snapshot.phase === 'aborted' && <p>A player left or the connection timed out. No highlight will be created. Leave this room to play again.</p>}
         {snapshot.public && opponent && <button className="online-link" onClick={() => setReport(!report)}>Report & block player</button>}
         {report && <form onSubmit={e => { e.preventDefault(); void api(`/rooms/${snapshot.roomId}/report`, guest!.token, { reason }).then(() => { leave(); setError('Report saved. This guest player is blocked from your future matches.'); }).catch(e => setError(e.message)); }}><label>What happened?<textarea minLength={3} maxLength={500} required value={reason} onChange={e => setReason(e.target.value)} /></label><button type="submit">Send report and leave</button></form>}
@@ -193,20 +212,6 @@ function OnlineGame() {
       <div ref={audioHost} />
     </>}
   </main>;
-}
-
-function PlayerTile({ player, local, videoRef, points }: { player?: OnlinePlayer; local?: boolean; videoRef: React.RefObject<HTMLVideoElement | null>; points?: Point[] | null }) {
-  const arms = player?.pose.arms;
-  const bones = [[11, 12], [11, 23], [12, 24], [23, 24], [11, 13], [13, 15], [12, 14], [14, 16]];
-  return <article className="online-player"><div className="online-player-title"><span>{player ? `${player.name}${local ? ' (you)' : ''}` : 'Waiting for a friend…'}</span><strong>{player?.score || 0}</strong></div>
-    <div className="online-camera"><video ref={videoRef} autoPlay playsInline muted={!!local} style={{ transform: 'scaleX(-1)' }} />
-      {points && <svg className="online-skeleton" viewBox={`0 0 ${(player?.aspect || 16 / 9) * 540} 540`} preserveAspectRatio="xMidYMid meet">{bones.map(([a, b]) => <line key={`${a}-${b}`} x1={(1 - points[a].x) * (player?.aspect || 16 / 9) * 540} y1={points[a].y * 540} x2={(1 - points[b].x) * (player?.aspect || 16 / 9) * 540} y2={points[b].y * 540} stroke="var(--p1, #22e6c8)" strokeWidth="5" />)}</svg>}
-      {player && <div className="online-target">{arms && <svg viewBox="0 0 120 130" aria-label={player.pose.label}><g fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round"><circle cx="60" cy="22" r="10" /><path d="M60 33 V80 M60 80 L40 112 M60 80 L80 112" /><path d={`M60 48 L${60 - Math.cos(arms.la) * 38} ${48 + Math.sin(arms.la) * 38} M60 48 L${60 + Math.cos(arms.ra) * 38} ${48 + Math.sin(arms.ra) * 38}`} /></g></svg>}<span>{player.pose.label}</span><progress aria-label="Pose hold progress" value={player.hold} max={1} /></div>}
-      {player && !player.connected && <span className="online-camera-message">Reconnecting…</span>}
-    </div>
-    <div className="online-player-bottom"><span>{player?.ready ? '✓ Ready' : local ? 'Your camera' : player ? 'Connected' : 'Invite someone to join'}</span><span>{player?.misses || 0} missed</span></div>
-    <progress className="online-wall" aria-label="Time before next pose" value={player?.progress || 0} max={1} />
-  </article>;
 }
 
 function Clip({ id, token, share }: { id: string; token?: string; share?: string }) {
