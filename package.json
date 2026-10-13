@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "pages": "node scripts/build-pages.mjs",
+    "predev": "npm run pages",
     "dev": "vite",
+    "prebuild": "npm run pages",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b"

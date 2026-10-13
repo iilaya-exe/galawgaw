@@ -45,6 +45,28 @@ deybsuanwashere
 Play a single game, **Shuffle** a random one, or run the **Gauntlet**: random
 versus games back to back, three lives each, last player standing wins.
 
+## Site information and AdSense
+
+`npm run dev` and `npm run build` generate static `/about/`, `/help/`,
+`/contact/`, `/privacy/`, and `/terms/` pages, plus a sitemap. Edit the content in
+`scripts/site-pages.mjs` and styling in `public/info.css`; run `npm run pages`
+after editing during development. Generated HTML in `public/` is ignored by
+Git and regenerated before deployment. The game instructions are taken directly
+from the game registry. These pages work without JavaScript or camera access.
+
+Support and privacy requests go to `ponj.suan@gmail.com`. The arcade, online
+rooms, and clip pages link to the information pages. The privacy text separates
+the backend's 30-day clip access expiry from storage cleanup: R2 lifecycle
+rules and database retention are separate deployment settings. Verify the
+backend's `SETUP.md` retention steps before claiming timed file deletion.
+
+`public/ads.txt` contains the Google direct-seller entry for publisher
+`pub-6484144302656332`. `public/robots.txt` points to the generated sitemap.
+After deployment, verify these files and the new pages on galawgaw.com.
+Configure the applicable consent message in AdSense's **Privacy & messaging**
+and review actual vendor settings; adding these pages does not configure a CMP
+or guarantee AdSense approval. Informational pages do not load ad scripts.
+
 ## Project layout
 
 ```text

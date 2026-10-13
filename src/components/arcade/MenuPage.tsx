@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { GameCard } from "./GameCard";
 import { Lives } from "./Lives";
 import { Logo } from "./Logo";
+import { SiteLinks } from "@/components/SiteLinks";
 
 type Filter = "all" | "versus" | "coop" | "hand" | "pose";
 
@@ -108,7 +109,7 @@ export function MenuPage({ hidden }: { hidden: boolean }) {
               variants={rise} initial="hidden" animate="show" custom={4}
               className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground"
             >
-              <li className="flex items-center gap-1.5"><ShieldCheck className="size-4 text-p1" />Private, on-device tracking</li>
+              <li className="flex items-center gap-1.5"><ShieldCheck className="size-4 text-p1" />Camera stays local in same-screen play</li>
               <li className="flex items-center gap-1.5"><Users className="size-4 text-p2" />2 players, 1 screen</li>
               <li className="flex items-center gap-1.5"><Zap className="size-4 text-amber" />{META.length} games</li>
             </motion.ul>
@@ -275,9 +276,11 @@ function SiteFooter() {
         <div className="flex flex-col gap-1">
           <span className="flex items-center gap-1.5 text-foreground">
             <ShieldCheck className="size-4 text-p1" />
-            Your camera feed is processed on your device and is never uploaded.
+            Same-screen video stays on your device. Online play shares movement and, when enabled, live video.
           </span>
           <span>Best in Chrome or Edge on a laptop or desktop with a webcam.</span>
+          <span>Online recording is optional and requires both players to agree.</span>
+          <div className="mt-4"><SiteLinks /></div>
         </div>
         <div className="hidden flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:flex">
           <span className="flex items-center gap-1.5"><Kbd>←</Kbd><Kbd>→</Kbd> browse</span>

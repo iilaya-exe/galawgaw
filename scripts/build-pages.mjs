@@ -1,0 +1,64 @@
+// These are real HTML pages so readers and crawlers do not need the game bundle,
+// camera access, or JavaScript. npm's predev/prebuild hooks keep them up to date.
+import { mkdir, writeFile } from 'node:fs/promises';
+import { ONLINE_GAMES } from '../src/game/onlineProtocol.js';
+import { pages } from './site-pages.mjs';
+
+const escape = (value) => String(value).replace(/[&<>"']/g, char => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+})[char]);
+const updated = 'October 13, 2026';
+const base = 'https://galawgaw.com';
+const gameGuides = ONLINE_GAMES.map(game => `
+  <section id="${escape(game.id)}" class="game-guide">
+    <p class="eyebrow">${game.coop ? 'Work together' : 'Head to head'} · ${game.mode === 'hand' ? 'Hand tracking' : 'Body tracking'}</p>
+    <h3>${escape(game.title)}</h3>
+    <p>${escape(game.blurb)}</p>
+    <ol>${game.tutorial.map(step => `<li>${escape(step)}</li>`).join('')}</ol>
+  </section>`).join('');
+const gameContents = `<ul class="game-index">${ONLINE_GAMES.map(game => `<li><a href="#${escape(game.id)}">${escape(game.title)}</a></li>`).join('')}</ul>`;
+
+for (const page of pages) {
+  const links = pages.map(item => `<a href="../${item.slug}/"${item.slug === page.slug ? ' aria-current="page"' : ''}>${escape(item.label)}</a>`).join('\n');
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0b14">
+  <title>${escape(page.label)} — GALAWGAW</title>
+  <meta name="description" content="${escape(page.description)}">
+  <link rel="canonical" href="${base}/${page.slug}/">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="stylesheet" href="../info.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a href="../" class="brand" aria-label="GALAWGAW home">GALAWGAW<span class="brand-dot">.</span></a>
+    <a href="../#games" class="play-link">Back to the games <span aria-hidden="true">↗</span></a>
+  </header>
+  <div class="page-layout">
+    <aside><p class="nav-label">Around the arcade</p><nav aria-label="Site information">${links}</nav></aside>
+    <main id="main" tabindex="-1">
+      <p class="eyebrow">${escape(page.eyebrow)}</p>
+      <h1>${escape(page.title)}</h1>
+      <p class="intro">${escape(page.intro)}</p>
+      ${page.policy ? `<p class="updated">Last updated: <time datetime="2026-10-13">${updated}</time></p>` : ''}
+      ${page.body.replace('<!-- GAME_INDEX -->', gameContents).replace('<!-- GAME_GUIDES -->', gameGuides)}
+    </main>
+  </div>
+  <footer class="site-footer"><p>Move a little. Laugh a lot.</p><a href="../">Back to GALAWGAW</a><span>© 2026 GALAWGAW</span></footer>
+</body>
+</html>
+`;
+  const dir = new URL(`../public/${page.slug}/`, import.meta.url);
+  await mkdir(dir, { recursive: true });
+  await writeFile(new URL('index.html', dir), html);
+}
+const urls = [`${base}/`, ...pages.map(page => `${base}/${page.slug}/`)];
+await writeFile(new URL('../public/sitemap.xml', import.meta.url), `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(url => `  <url><loc>${url}</loc></url>`).join('\n')}
+</urlset>\n`);
+console.log(`Generated ${pages.length} information pages, ${ONLINE_GAMES.length} game guides, and sitemap.xml.`);

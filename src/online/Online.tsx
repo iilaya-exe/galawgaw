@@ -6,6 +6,7 @@ import { openCamera } from './camera';
 import { GameStage } from './GameStage';
 import { ONLINE_PROTOCOL } from '../game/onlineProtocol.js';
 import { unlock } from '../game/audio.js';
+import { SiteLinks } from '../components/SiteLinks';
 import './online.css';
 
 type Guest = { token: string; id: string; name: string };
@@ -15,7 +16,7 @@ function exitOnline() { history.replaceState(null, '', location.pathname); windo
 
 export function Online() {
   const clipId = new URLSearchParams(location.search).get('clip');
-  if (clipId) return <main className="online"><header><a href="/">GALAWGAW</a></header><Clip id={clipId} token={savedGuest()?.token} share={new URLSearchParams(location.search).get('share') || undefined} /></main>;
+  if (clipId) return <main className="online"><header><a href="./">GALAWGAW</a></header><Clip id={clipId} token={savedGuest()?.token} share={new URLSearchParams(location.search).get('share') || undefined} /><footer className="mt-12 border-t border-white/10 py-8"><SiteLinks /></footer></main>;
   return <OnlineGame />;
 }
 function OnlineGame() {
@@ -196,7 +197,7 @@ function OnlineGame() {
           <ol className="online-instructions">{snapshot.game.tutorial.map(t => <li key={t}>{t}</li>)}</ol>
           {!cameraReady && <button className="online-primary" disabled={cameraBusy} onClick={() => void enableCamera()}>{cameraBusy ? 'Starting camera and tracking…' : snapshot.mediaEnabled ? 'Enable & share my camera' : 'Enable my camera'}</button>}
           {cameraReady && <p>{tracked ? '✓ Movement tracked. You’re ready.' : snapshot.game.mode === 'hand' ? 'Show your hands to the camera.' : 'Step into frame with your hands and hips visible.'}</p>}
-          {snapshot.highlightsEnabled && <label className="online-consent"><input type="checkbox" checked={consent} disabled={me?.ready} onChange={e => setConsent(e.target.checked)} />Allow recording of my camera and enabled microphone for a highlight that either player can share. Raw footage expires after 24 hours; highlights after 30 days.</label>}
+          {snapshot.highlightsEnabled && <label className="online-consent"><input type="checkbox" checked={consent} disabled={me?.ready} onChange={e => setConsent(e.target.checked)} />Allow recording of my camera and enabled microphone for a highlight that either player can share. Highlight access expires after 30 days. See the <a href="./privacy/#retention" target="_blank" rel="noopener noreferrer">Privacy Policy</a> for storage and deletion.</label>}
           {!snapshot.mediaEnabled && <p className="online-fine">Live cameras are not connected on this server. You’ll see your friend’s tracked movements instead.</p>}
           {cameraReady && <button className="online-primary" disabled={!tracked || !opponent} onClick={() => room.current?.send('ready', { ready: !me?.ready, recordingConsent: consent })}>{me?.ready ? 'Ready — click to cancel' : 'I’m ready'}</button>}
         </>}
@@ -211,6 +212,7 @@ function OnlineGame() {
       </section>
       <div ref={audioHost} />
     </>}
+    <footer className="mt-12 border-t border-white/10 py-8"><SiteLinks /></footer>
   </main>;
 }
 
