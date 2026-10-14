@@ -8,6 +8,8 @@
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/700.css";
 
+@import "./arcade.css";
+
 @custom-variant dark (&:is(.dark *));
 /* Landscape phones: overlays tighten up so nothing is clipped. */
 @custom-variant short (@media (max-height: 520px));
@@ -112,25 +114,7 @@
 }
 
 /* ── Backdrop ──────────────────────────────────────────────────────── */
-.app-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(60rem 36rem at 12% -10%, color-mix(in oklab, var(--p1) 16%, transparent), transparent 70%),
-    radial-gradient(50rem 32rem at 95% 0%, color-mix(in oklab, var(--p2) 13%, transparent), transparent 70%),
-    radial-gradient(40rem 30rem at 50% 110%, color-mix(in oklab, var(--violet) 10%, transparent), transparent 70%),
-    var(--background);
-}
-.app-backdrop::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(oklch(1 0 0 / 7%) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: linear-gradient(to bottom, black, transparent 75%);
-}
+.app-backdrop { position:fixed; inset:0; z-index:-1; pointer-events:none; background:var(--background); }
 
 .text-gradient {
   background: linear-gradient(100deg, var(--p1), var(--ice) 45%, var(--p2));

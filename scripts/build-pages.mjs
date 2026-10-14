@@ -1,6 +1,6 @@
 // These are real HTML pages so readers and crawlers do not need the game bundle,
 // camera access, or JavaScript. npm's predev/prebuild hooks keep them up to date.
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, copyFile } from 'node:fs/promises';
 import { ONLINE_GAMES } from '../src/game/onlineProtocol.js';
 import { pages } from './site-pages.mjs';
 
@@ -9,6 +9,16 @@ const escape = (value) => String(value).replace(/[&<>"']/g, char => ({
 })[char]);
 const updated = 'October 13, 2026';
 const base = 'https://galawgaw.com';
+// Reuse the app's outlined wordmark and installed fonts on script-free pages.
+const logoSource = await readFile(new URL('../src/components/arcade/Logo.tsx', import.meta.url), 'utf8');
+const wordmark = logoSource.match(/const WORDMARK\s*=\s*"([^"]+)"/)?.[1];
+if (!wordmark) throw new Error('Could not read the shared GALAWGAW wordmark.');
+await writeFile(new URL('../public/wordmark.svg', import.meta.url), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 240 4560 960"><path d="${wordmark}" fill="#eceefa"/></svg>`);
+await mkdir(new URL('../public/fonts/', import.meta.url), { recursive: true });
+await Promise.all([
+  copyFile(new URL('../node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2', import.meta.url), new URL('../public/fonts/geist.woff2', import.meta.url)),
+  copyFile(new URL('../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2', import.meta.url), new URL('../public/fonts/space-grotesk.woff2', import.meta.url)),
+]);
 const gameGuides = ONLINE_GAMES.map(game => `
   <section id="${escape(game.id)}" class="game-guide">
     <p class="eyebrow">${game.coop ? 'Work together' : 'Head to head'} · ${game.mode === 'hand' ? 'Hand tracking' : 'Body tracking'}</p>
@@ -35,7 +45,7 @@ for (const page of pages) {
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
-    <a href="../" class="brand" aria-label="GALAWGAW home">GALAWGAW<span class="brand-dot">.</span></a>
+    <a href="../" class="brand" aria-label="GALAWGAW home"><img src="../favicon.svg" width="32" height="32" alt=""><img src="../wordmark.svg" width="105" height="22" alt="GALAWGAW"></a>
     <a href="../#games" class="play-link">Back to the games <span aria-hidden="true">↗</span></a>
   </header>
   <div class="page-layout">
@@ -48,7 +58,7 @@ for (const page of pages) {
       ${page.body.replace('<!-- GAME_INDEX -->', gameContents).replace('<!-- GAME_GUIDES -->', gameGuides)}
     </main>
   </div>
-  <footer class="site-footer"><p>Move a little. Laugh a lot.</p><a href="../">Back to GALAWGAW</a><span>© 2026 GALAWGAW</span></footer>
+  <footer class="site-footer"><p>Good company. Questionable moves.</p><a href="../">Back to GALAWGAW</a><span>© 2026 GALAWGAW</span></footer>
 </body>
 </html>
 `;

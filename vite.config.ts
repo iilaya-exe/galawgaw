@@ -19,7 +19,21 @@ export default defineConfig({
   // Relative asset URLs, so the same build works at a domain root and under
   // a GitHub Pages project path like username.github.io/galawgaw/.
   base: "./",
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), {
+    name: "static-information-pages",
+    configureServer(server) {
+      // Vite's SPA fallback otherwise shows the arcade at these public URLs.
+      server.middlewares.use((req, _res, next) => {
+        if (req.url) {
+          const url = new URL(req.url, "http://localhost");
+          if (/^\/(about|help|contact|privacy|terms)\/$/.test(url.pathname)) {
+            req.url = `${url.pathname}index.html${url.search}`;
+          }
+        }
+        next();
+      });
+    },
+  }],
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
   },

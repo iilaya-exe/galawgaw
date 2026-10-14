@@ -13,3 +13,7 @@ public/terms/
 public/help/
 public/sitemap.xml
 public/tracking/
+
+# Shared fonts and logo generated for static information pages
+public/fonts/
+public/wordmark.svg

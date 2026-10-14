@@ -1,0 +1,185 @@
+# GALAWGAW UI Redesign Handoff
+
+Last updated: October 15, 2026
+
+This document records the implemented redesign, the decisions behind it, completed verification, and remaining real-device checks. The redesign and local browser review are complete. Changes are still in the working tree and have not been committed or deployed.
+
+## Goal and chosen direction
+
+The objective was to make GALAWGAW feel like one handmade, silly movement-based party game across both same-screen and online play. The chosen direction is a compact arcade rather than a generic landing page or dashboard:
+
+- Mint represents Player 1 and primary actions.
+- Pink represents Player 2 and highlight/replay moments.
+- Amber represents The Gauntlet.
+- Space Grotesk is used for short expressive headings, Geist for readable interface text, and JetBrains Mono for labels and numbering.
+- Games use simple numbers, solid dark surfaces, thin dividers, and clear selected states.
+- The same logo, navigation, typography, language, buttons, footer, and color system are used in local and online modes.
+- Decorative gradients, blobs, excessive cards, heavy shadows, blur, and animation loops were intentionally removed or avoided.
+
+The working copy in the repository is the source of truth. Figma contains a direction sheet documenting these decisions, not a separate pixel-perfect implementation that can drift from the code.
+
+## Figma work
+
+The Figma connection was verified successfully for the account `Dave Javenn G. Suan`.
+
+File used:
+
+<https://www.figma.com/design/GUSJtHFtmKMoDvD8Wo33gt/Untitled?node-id=4-2>
+
+A direction sheet named `GALAWGAW / Arcade direction` was added to Page 1. It documents:
+
+- The mint, pink, and amber roles.
+- The same-screen-to-online flow.
+- Typography choices.
+- The performance rules that must remain intact.
+- The principle that the codebase is the implementation source of truth.
+
+The sheet uses Geist and Space Grotesk and was visually checked after fixing its initial text-flow sizing.
+
+## Code changes completed
+
+### Shared arcade shell
+
+Added `src/components/arcade/ArcadeShell.tsx` with:
+
+- `ArcadeHeader`, shared by the main arcade and online play.
+- A Same screen / Online mode switch.
+- `ArcadeFooter`, with consistent privacy and recording language.
+- `PartyPose`, a lightweight static SVG illustration of two players posing.
+
+The artwork is deliberately static so it does not add another render loop or burden low-end devices.
+
+### Main arcade
+
+Rebuilt `src/components/arcade/MenuPage.tsx` around a more compact arcade layout:
+
+- New hero: “Small games. Ridiculous moves.”
+- Clear Pick a game and Play online actions.
+- A horizontal Gauntlet strip instead of a large glowing promotional card.
+- A game section titled “Pick your next bad idea.”
+- Lightweight filter controls for all games, versus, co-op, hand, and full-body games.
+- A simpler three-step explanation of camera setup and play.
+- Shared header and footer.
+
+Rebuilt `src/components/arcade/GameCard.tsx`:
+
+- Preserved the real game preview canvases and all existing click/keyboard behavior.
+- Replaced generic card UI with numbered arcade entries.
+- Kept game type, tracking type, best score, and play action visible.
+- Removed blur, large shadow effects, hover transforms, and per-card animation wrappers.
+
+Added `src/arcade.css` for the shared shell, arcade page, responsive layout, game entries, Gauntlet strip, and footer.
+
+Updated `src/index.css`:
+
+- Imports the new arcade stylesheet.
+- Replaced the multi-radial-gradient dotted backdrop with a solid background.
+- Left all camera-stage, gameplay, reduced-motion, and low-performance-mode rules intact.
+
+### Online play
+
+Updated `src/online/Online.tsx` and `src/online/online.css`:
+
+- Uses the same shared header and footer as the main arcade.
+- New online headline: “Far apart. Equally ridiculous.”
+- Replaced the single game dropdown with a browsable radio-button game list.
+- Split room setup into two obvious steps: Pick your game and Get together.
+- Kept private room creation, joining by code, public matchmaking, saved highlight access, privacy text, and all server calls.
+- Added clearer selected-game details.
+- Added a room readiness sequence: Camera ready, Partner joined, Ready to play.
+- Restyled waiting, active match, result, consent, performance, and error states with the shared design language.
+- Restyled highlights as “Your match. The good bits.”
+- Preserved the existing camera, tracking, room, recording, and highlight logic.
+
+Updated `src/online/GameStage.tsx` only at the presentation layer:
+
+- Grouped stage instructions, fullscreen, and sound controls into one toolbar.
+- Did not alter canvas sizes, requestAnimationFrame logic, video attachment, tracking projection, or server snapshots.
+
+### Static information pages
+
+Updated `scripts/build-pages.mjs` and `public/info.css` so About, Help, Contact, Privacy, and Terms feel related to the arcade:
+
+- Reuses the existing outlined GALAWGAW wordmark.
+- Copies the already-installed local Geist and Space Grotesk font files when pages are generated.
+- Removes the old radial background and generic rounded-card styling.
+- Uses the same dark background, mint accent, type hierarchy, and compact radii.
+- Changes the footer line to “Good company. Questionable moves.”
+
+Generated fonts and the wordmark are ignored in `.gitignore`, consistent with the other generated static-page output.
+
+Added a small development-only middleware in `vite.config.ts` to serve the generated information-page index files at their normal trailing-slash URLs. Without it, Vite's development SPA fallback showed the arcade for `/about/` and similar links. Production routing is unchanged.
+
+## Performance constraints preserved
+
+The redesign must not undo the existing latency and low-end-device work. So far, it has preserved:
+
+- Background-worker MediaPipe tracking and main-thread fallback.
+- Adaptive tracking frame budgets and stale-result handling.
+- Light online video as the recommended/default quality.
+- Existing LiveKit bitrate and encoding settings.
+- Existing server snapshot cadence, ping measurements, and direct resync behavior.
+- Existing online drawing loop and canvas dimensions.
+- Existing local preview manager rather than adding new preview loops.
+- `prefers-reduced-motion` behavior and the existing `perf-low` camera rules.
+
+No dependency was added. No backend game rules, scoring, room protocol, tracking code, or recording pipeline was changed.
+
+## Verification completed
+
+- TypeScript check passed with `npm run typecheck` after the main redesign changes.
+- The main arcade was opened at desktop size and visually inspected at 1280 × 900.
+- The redesigned desktop hero, mode switch, static pose artwork, Gauntlet strip, game section, typography, and spacing rendered correctly.
+- The online disconnected/error state was opened and visually inspected. It correctly retained the new shared shell and showed a graceful server-unavailable state.
+- The Figma direction sheet was created and visually checked.
+- Static information pages were regenerated successfully with `npm run pages`.
+- `npm test` passed all 11 tests, covering immediate local controls for all ten games and bounded projection.
+- `npm run build` passed, including TypeScript and the production bundle, after the final routing fix.
+- `git diff --check` passed (line-ending warnings only).
+- All ten server-provided online games loaded; radio selection updated the selected-game summary and worked with keyboard arrows.
+- Two separate local browser sessions created and joined a private Signal Pop room. The guest joined the host's game through the invite even though the guest initially selected another game. Both player names appeared, Partner joined updated, and leaving returned to the picker. Both test players left afterward.
+- Main arcade, online picker, and room UI were reviewed at desktop and phone sizes, including 390px phone width. The main arcade also fit 320px width; landscape overflow was checked at 844px. No horizontal overflow was observed at the tested widths.
+- Main arcade filters and arrow-key game navigation still worked.
+- About, Help, Contact, Privacy, and Terms were checked through their normal links at phone width with correct headings and no broken images or horizontal overflow.
+- The backend working tree remained clean, and tracking, camera, game engine, and package dependency files were unchanged by this redesign.
+- Final arcade and online previews were left open at `http://127.0.0.1:5173/` and `http://127.0.0.1:5173/#online`.
+
+## Current working-tree files
+
+Modified:
+
+- `.gitignore`
+- `public/info.css`
+- `scripts/build-pages.mjs`
+- `src/components/arcade/GameCard.tsx`
+- `src/components/arcade/MenuPage.tsx`
+- `src/index.css`
+- `src/online/GameStage.tsx`
+- `src/online/Online.tsx`
+- `src/online/online.css`
+- `vite.config.ts`
+
+New:
+
+- `src/arcade.css`
+- `src/components/arcade/ArcadeShell.tsx`
+- `UI_REDESIGN_HANDOFF.md`
+
+## Remaining checks and useful next work
+
+The earlier local-backend connection problem was resolved during the continuation; private room creation and joining now work in the local preview. The local test backend reports media, highlights, and public play disabled.
+
+1. Run a real two-device camera match, including tracking calibration, Ready to play, gameplay, results, and replay. Camera and microphone permissions were not granted during the automated review.
+2. With configured media services, test live video, recording consent from both players, a rendered highlight, and opening its shared link. The visual code was updated, but actual recording/rendering was not exercised here.
+3. Test public matchmaking in an environment with public play enabled; its existing behavior was retained but not exercised against the local backend.
+4. Compare frame times and responsiveness on a lower-end phone before and after deployment. No new dependency or render loop was added and performance-sensitive code is unchanged, but this is not a measured device benchmark.
+5. Deploy only when requested. Figma was accessible but the supplied file was initially empty, so it now contains a direction sheet derived from the product. Mobbin was intentionally not used.
+
+## Important cautions for whoever continues
+
+- Do not replace or refactor `src/tracking/tracker.ts`, `public/tracking-worker.js`, `src/online/camera.ts`, the game preview manager, or backend update cadence as part of visual polish.
+- Do not add decorative animation loops, canvas effects, video filters, blur over live camera views, or another UI/component library.
+- Keep the video and canvas elements mounted where the existing room code expects them; LiveKit track attachment depends on those refs.
+- Keep online games sourced from `/api/config`; do not hardcode a frontend-only game list that could drift from the server.
+- Preserve room/query/hash behavior for invite links and shared clips.
+- Do not deploy or push until the final checks pass and the user asks for deployment/pushing.

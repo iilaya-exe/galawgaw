@@ -82,8 +82,8 @@ export function GameStage({ snapshot, guestId, localVideo, remoteVideo, localInp
       </div>
       <canvas ref={canvas} width={shared ? 960 : 1280} height={shared ? 540 : 360} />
     </div>
-    <p className="online-fine">{shared ? 'Shared board: either player can cover any leak.' : `You are P${players.findIndex(p => p?.id === guestId) + 1}. Your entire camera controls your side.`} For a larger play area, use landscape or fullscreen.</p>
-    <button onClick={() => { void canvas.current?.closest('section')?.requestFullscreen().catch(() => {}); }}>Fullscreen</button>
-    <button onClick={() => { setMuted(!muted); mute(!muted); }}>{muted ? 'Enable game sounds' : 'Mute game sounds'}</button>
+    <div className="online-stage-toolbar"><p className="online-fine">{shared ? 'Shared board: either player can cover any leak.' : `You are P${players.findIndex(p => p?.id === guestId) + 1}. Your entire camera controls your side.`} For a larger play area, use landscape or fullscreen.</p>
+    <div><button onClick={() => { void canvas.current?.closest('section')?.requestFullscreen().catch(() => {}); }}>Fullscreen</button>
+    <button onClick={() => { setMuted(!muted); mute(!muted); }}>{muted ? 'Enable game sounds' : 'Mute game sounds'}</button></div></div>
   </section>;
 }

@@ -6,7 +6,7 @@ import { openCamera, type LocalInput } from './camera';
 import { GameStage } from './GameStage';
 import { ONLINE_PROTOCOL } from '../game/onlineProtocol.js';
 import { unlock } from '../game/audio.js';
-import { SiteLinks } from '../components/SiteLinks';
+import { ArcadeHeader, ArcadeFooter } from '../components/arcade/ArcadeShell';
 import './online.css';
 
 type Guest = { token: string; id: string; name: string };
@@ -16,7 +16,7 @@ function exitOnline() { history.replaceState(null, '', location.pathname); windo
 
 export function Online() {
   const clipId = new URLSearchParams(location.search).get('clip');
-  if (clipId) return <main className="online"><header><a href="./">GALAWGAW</a></header><Clip id={clipId} token={savedGuest()?.token} share={new URLSearchParams(location.search).get('share') || undefined} /><footer className="mt-12 border-t border-white/10 py-8"><SiteLinks /></footer></main>;
+  if (clipId) return <div className="online"><ArcadeHeader online onHome={exitOnline} /><main className="online-content online-highlight-page"><p className="arcade-eyebrow">THE AFTERPARTY / MATCH HIGHLIGHT</p><Clip id={clipId} token={savedGuest()?.token} share={new URLSearchParams(location.search).get('share') || undefined} /><a href="./#online" className="online-link">Back to the arcade →</a></main><ArcadeFooter /></div>;
   return <OnlineGame />;
 }
 function OnlineGame() {
@@ -198,25 +198,34 @@ function OnlineGame() {
     catch { setConnection(`Share this room code: ${snapshot!.roomId}`); }
   }
 
-  return <main className="online">
-    <header><button className="online-brand" onClick={() => { leave(); exitOnline(); }}>GALAWGAW</button><span>ONLINE / {snapshot?.game.title.toUpperCase() || 'ALL GAMES'}</span>{snapshot && <button onClick={leave}>Leave room</button>}</header>
+  return <div className="online">
+    <ArcadeHeader online onHome={() => { leave(); exitOnline(); }} action={snapshot ? <button onClick={leave}>Leave room</button> : undefined} />
+    <main className="online-content">
     {error && <div role="alert" className="online-error">{error}<button aria-label="Dismiss message" onClick={() => setError('')}>×</button></div>}
     {!snapshot ? <section className="online-entry">
-      <p className="online-eyebrow">Different rooms. Same ridiculous moves.</p><h1>Bring a friend.<br /><em>Pick your game.</em></h1>
-      <p>Compete or team up across the whole arcade. Pick a game, then invite a friend or find a player.</p>
-      <label>Choose a game<select value={gameId} onChange={e => setGameId(e.target.value)} disabled={busy || !compatible}>
-        {features.games.map(g => <option key={g.id} value={g.id}>{g.icon} {g.title} · {g.coop ? 'Co-op' : 'Versus'}</option>)}
-      </select></label>
-      {selectedGame && <p>{selectedGame.blurb} <span className="online-fine">{selectedGame.mode === 'hand' ? 'Hand tracking' : 'Body tracking'}</span></p>}
-      <label>Your name<input maxLength={24} value={name} disabled={!!guest} onChange={e => setName(e.target.value)} placeholder="What should we call you?" /></label>
-      {guest && <button className="online-link" onClick={() => { setGuest(null); sessionStorage.removeItem('galawgaw.guest'); }}>Change name</button>}
-      <button className="online-primary" disabled={busy || !name.trim() || !compatible} onClick={() => void join('private')}>{busy ? 'Connecting…' : 'Create a private room'}</button>
-      <div className="online-join"><input aria-label="Room code" maxLength={12} value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="12-character room code" /><button disabled={busy || code.trim().length !== 12 || !name.trim() || !compatible} onClick={() => void join('join')}>Join friend</button></div>
-      {code && <p className="online-fine">Joining a code uses the host’s chosen game.</p>}
-      {features.publicPlay && <button disabled={busy || !name.trim() || !compatible} onClick={() => void join('public')}>Find a player for {selectedGame?.title}</button>}
-      {lastHighlight && <a href={`?clip=${lastHighlight}#online`}>Open your last highlight</a>}
-      <p className="online-fine">Online movement data is sent to the game server. When live cameras are enabled, your video is shared with the other player. Recording starts only if both players opt in.</p>
-      <button className="online-link" onClick={exitOnline}>Back to same-screen games</button>
+      <div className="online-entry-heading"><p className="arcade-eyebrow">THE SAME ARCADE / A DIFFERENT ROOM</p><h1>Far apart.<br /><em>Equally ridiculous.</em></h1><p>Pick a game, call a friend, and let your hands do the talking.</p></div>
+      <div className="online-entry-grid">
+        <fieldset className="online-game-picker" disabled={busy || !compatible}>
+          <legend><span>01</span> Pick your game</legend>
+          <p className="online-fine">Go head to head, or make a great mess together.</p>
+          {features.games.length ? <div className="online-game-options">{features.games.map((g, i) => <label key={g.id} className="online-game-option">
+            <input type="radio" name="online-game" value={g.id} checked={gameId === g.id} onChange={() => setGameId(g.id)} />
+            <span className="online-option-number">{String(i + 1).padStart(2, '0')}</span><span className="online-option-copy"><strong><span aria-hidden="true">{g.icon}</span> {g.title}</strong><small>{g.coop ? 'Co-op' : 'Versus'} · {g.mode === 'hand' ? 'Hands' : 'Full body'}</small></span><span className="online-option-check" aria-hidden="true">{gameId === g.id ? '✓' : '↗'}</span>
+          </label>)}</div> : <p className="online-config-state" role="status">{error ? 'Games will appear when the server is connected.' : 'Getting the arcade ready…'}</p>}
+        </fieldset>
+        <div className="online-room-setup" aria-labelledby="room-setup-title">
+          <h2 id="room-setup-title"><span>02</span> Get together</h2>
+          <div className="online-selected-game"><span className="arcade-eyebrow">YOUR PICK</span><strong>{selectedGame ? selectedGame.title : error ? 'Connection unavailable' : 'Loading games…'}</strong><p>{selectedGame?.blurb || 'Choose a game, or join a friend with their room code.'}</p></div>
+          <label>Your name<input autoComplete="nickname" maxLength={24} value={name} disabled={!!guest} onChange={e => setName(e.target.value)} placeholder="What should we call you?" /></label>
+          {guest && <button className="online-link" onClick={() => { setGuest(null); sessionStorage.removeItem('galawgaw.guest'); }}>Change name</button>}
+          <button className="online-primary" disabled={busy || !name.trim() || !compatible} onClick={() => void join('private')}>{busy ? 'Connecting…' : 'Create a private room →'}</button>
+          <p className="online-fine">You’ll get an invite link. Camera setup comes next.</p>
+          <div className="online-join-section"><label htmlFor="room-code">Got an invite? Join your friend.</label><div className="online-join"><input id="room-code" autoCapitalize="characters" spellCheck={false} maxLength={12} value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="12-character room code" /><button disabled={busy || code.trim().length !== 12 || !name.trim() || !compatible} onClick={() => void join('join')}>Join</button></div><p className="online-fine">A room code uses your host’s chosen game.</p></div>
+          {features.publicPlay && <button disabled={busy || !name.trim() || !compatible} onClick={() => void join('public')}>Find a player for {selectedGame?.title}</button>}
+          {lastHighlight && <a className="online-link" href={`?clip=${lastHighlight}#online`}>Watch your last highlight ↗</a>}
+          <p className="online-fine">Online play shares movement data. If enabled, live video is shared with your partner. A highlight is recorded only when both players opt in.</p>
+        </div>
+      </div>
     </section> : <>
       <section className="online-room-head"><div><p className="online-eyebrow">{snapshot.public ? 'PUBLIC ROOM' : `PRIVATE ROOM · ${snapshot.roomId}`} · {snapshot.game.coop ? 'CO-OP' : 'VERSUS'}</p><h1>{snapshot.phase === 'over' ? (snapshot.game.coop ? snapshot.result?.title : snapshot.winner === null ? 'A draw!' : `${snapshot.players[snapshot.winner].name} wins!`) : snapshot.phase === 'paused' ? 'Waiting for your friend to reconnect…' : snapshot.phase === 'aborted' ? 'The match ended early.' : snapshot.game.title}</h1></div>
         <div className="online-status">{snapshot.recording && <span className="online-recording">● Recording</span>}<span>{connection}</span>{!snapshot.public && <button onClick={() => void copyInvite()}>Copy invite</button>}</div>
@@ -224,6 +233,8 @@ function OnlineGame() {
       <GameStage snapshot={snapshot} guestId={guest?.id} localVideo={localVideo} remoteVideo={remoteVideo} localInput={localInput} renderStats={renderStats} />
       <section className="online-controls">
         {snapshot.phase === 'lobby' && <>
+          <div className="online-setup-heading"><p className="arcade-eyebrow">BEFORE THE SHOW</p><h2>Get everyone in frame.</h2></div>
+          <ol className="online-setup-steps" aria-label="Room setup progress"><li data-complete={cameraReady && tracked}><span>{cameraReady && tracked ? '✓' : '1'}</span>Camera ready</li><li data-complete={!!opponent}><span>{opponent ? '✓' : '2'}</span>Partner joined</li><li data-complete={!!me?.ready}><span>{me?.ready ? '✓' : '3'}</span>Ready to play</li></ol>
           <p>{!opponent ? snapshot.public ? 'Waiting for someone who picked this game…' : 'Share your room code and wait for a friend.' : snapshot.game.mode === 'hand' ? 'Raise your hands so the camera can see them.' : 'Step back until your upper body and hands fit in the camera.'}</p>
           <ol className="online-instructions">{snapshot.game.tutorial.map(t => <li key={t}>{t}</li>)}</ol>
           {!cameraReady && <label>Camera quality<select value={lowVideo ? 'light' : 'standard'} disabled={cameraBusy} onChange={e => setLowVideo(e.target.value === 'light')}><option value="light">Lighter video (recommended)</option><option value="standard">Sharper video</option></select></label>}
@@ -245,8 +256,8 @@ function OnlineGame() {
       <div ref={audioHost} />
       <details className="online-performance"><summary>Connection &amp; performance</summary><p>{performanceInfo.fps} FPS · Tracking: {performanceInfo.tracking} ms ({performanceInfo.background ? 'background' : 'compatibility mode'})<br />Server round trip: {performanceInfo.ping === null ? 'Measuring…' : `${performanceInfo.ping} ms`} · Server delay: {performanceInfo.tick} ms · Update gap: {performanceInfo.gap} ms</p><p>High tracking time points to the device; a high round trip points to the connection or server location. Lobby updates arrive less often to save resources.</p></details>
     </>}
-    <footer className="mt-12 border-t border-white/10 py-8"><SiteLinks /></footer>
-  </main>;
+    </main><ArcadeFooter />
+  </div>;
 }
 
 function Clip({ id, token, share }: { id: string; token?: string; share?: string }) {
@@ -281,7 +292,7 @@ function Clip({ id, token, share }: { id: string; token?: string; share?: string
       setClip({ status: 'queued' }); setMessage('Retry started. This can take a few minutes.'); setRetryKey(key => key + 1);
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Could not retry the highlight.'); }
   }
-  return <section className="online-clip"><h2>Your match, the short version.</h2>
+  return <section className="online-clip"><p className="arcade-eyebrow">WORTH A REPLAY</p><h2>Your match. The good bits.</h2>
     {clip.url ? <><video controls playsInline src={clip.url} /><div className="online-media-buttons"><a href={clip.url} target="_blank" rel="noreferrer">Open / save MP4</a>{token && !share && <><button onClick={() => void shareClip()}>Share highlight</button><button onClick={() => void api(`/clips/${id}/share`, token, undefined, 'DELETE').then(() => setMessage('Share link disabled.')).catch(e => setMessage(e.message))}>Disable share link</button></>}</div></> : <p>{clip.status === 'failed' ? clip.message || 'The highlight could not be rendered.' : clip.status === 'no-recording' ? 'This match was not recorded.' : 'Making your highlight… You can keep playing.'}</p>}
     {clip.status === 'failed' && token && !share && <button onClick={() => void retryClip()}>Retry highlight</button>}
     {message && <p role="status">{message}</p>}

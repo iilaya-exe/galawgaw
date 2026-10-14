@@ -1,0 +1,77 @@
+/* Shared arcade surfaces. No blur, continuous animation, or new render loops. */
+.arcade-header { border-bottom:1px solid var(--border); background:var(--background); }
+.arcade-header-inner { max-width:1200px; min-height:78px; margin:auto; padding:16px 24px; display:flex; align-items:center; gap:28px; }
+.arcade-logo { flex-shrink:0; border-radius:4px; }
+.arcade-modes { display:flex; align-items:center; gap:4px; margin-left:auto; padding:4px; border:1px solid var(--border); border-radius:8px; }
+.arcade-modes a { font-size:13px; font-weight:650; padding:9px 16px; border-radius:4px; color:var(--muted-foreground); text-decoration:none; white-space:nowrap; }
+.arcade-modes a[aria-current] { background:var(--p1); color:var(--ink); }
+.arcade-modes a:not([aria-current]):hover { color:var(--foreground); background:var(--secondary); }
+.arcade-header-actions { display:flex; align-items:center; gap:4px; }
+.arcade-content { max-width:1200px; margin:auto; padding:0 24px; }
+.arcade-intro { display:grid; grid-template-columns:1.2fr 1fr; align-items:center; gap:48px; padding:56px 0 40px; }
+.arcade-eyebrow { font:500 10px/1.5 'JetBrains Mono',monospace; letter-spacing:.12em; color:var(--muted-foreground); }
+.arcade-intro h1 { font:700 clamp(36px,4.5vw,56px)/1.08 'Space Grotesk',sans-serif; letter-spacing:-.045em; margin:18px 0; }
+.arcade-intro h1 span { color:var(--p1); }
+.arcade-lede { max-width:460px; font-size:16px; line-height:1.75; color:var(--muted-foreground); }
+.arcade-intro-actions { display:flex; flex-wrap:wrap; gap:10px; margin:24px 0 14px; }
+.arcade-caption { color:var(--muted-foreground); font-size:12px; }
+.party-pose { width:100%; max-width:420px; justify-self:center; color:var(--muted-foreground); }
+.gauntlet-strip { border-block:1px solid color-mix(in oklab,var(--amber) 30%,transparent); padding:22px 0; display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.gauntlet-heading { display:flex; align-items:center; gap:16px; }
+.gauntlet-heading>svg { color:var(--amber); width:30px; height:30px; }
+.gauntlet-heading .arcade-eyebrow { color:var(--amber); }
+.gauntlet-heading h2 { font:700 24px/1.3 'Space Grotesk',sans-serif; letter-spacing:-.03em; }
+.gauntlet-strip>p { font-size:13px; color:var(--muted-foreground); line-height:1.6; }
+.gauntlet-lives { display:flex; flex-direction:column; gap:10px; }
+.gauntlet-lives>span { display:flex; align-items:center; gap:10px; font:10px 'JetBrains Mono',monospace; color:var(--p1); }
+.gauntlet-lives>span:last-child { color:var(--p2); }
+.gauntlet-lives .life { box-shadow:none; width:7px; height:7px; }
+.arcade-games { padding:48px 0; scroll-margin-top:24px; }
+.arcade-section-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px; }
+.arcade-section-heading h2 { font:700 clamp(23px,3vw,30px)/1.25 'Space Grotesk',sans-serif; letter-spacing:-.035em; margin-top:8px; }
+.arcade-filter-row { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px; }
+.arcade-filters { display:flex; flex-wrap:wrap; gap:6px; }
+.arcade-filters button { padding:9px 14px; font-size:12px; border:1px solid transparent; border-radius:6px; cursor:pointer; color:var(--muted-foreground); }
+.arcade-filters button[aria-pressed=true] { border-color:var(--input); background:var(--secondary); color:var(--foreground); }
+.arcade-filters button:hover { color:var(--foreground); }
+.arcade-game-count { white-space:nowrap; font:11px 'JetBrains Mono',monospace; color:var(--muted-foreground); }
+.arcade-game-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+.arcade-game { min-width:0; display:flex; flex-direction:column; text-align:left; cursor:pointer; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--card); transition:border-color .15s; }
+.arcade-game:hover { border-color:var(--game-accent); }
+.arcade-game-preview { position:relative; height:142px; background:var(--ink); border-bottom:1px solid var(--border); }
+.arcade-game-preview canvas { width:100%; height:100%; position:absolute; inset:0; }
+.arcade-game-number,.arcade-game-type { position:absolute; top:12px; font:10px 'JetBrains Mono',monospace; background:var(--ink); padding:4px 6px; }
+.arcade-game-number { left:12px; color:var(--game-accent); }.arcade-game-type { right:12px; color:var(--muted-foreground); }
+.arcade-game-copy { display:flex; flex:1; flex-direction:column; padding:18px; }
+.arcade-game h3 { display:flex; align-items:center; gap:8px; font:700 19px/1.4 'Space Grotesk',sans-serif; letter-spacing:-.03em; }
+.arcade-game h3>svg { width:17px; height:17px; margin-left:auto; color:var(--game-accent); }
+.arcade-game-copy>p { font-size:13px; line-height:1.65; color:var(--muted-foreground); margin:8px 0 20px; }
+.arcade-game-meta { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:auto; font-size:10px; color:var(--muted-foreground); }
+.arcade-game-meta>span { display:flex; align-items:center; gap:5px; }.arcade-game-meta svg { width:13px; height:13px; }
+.arcade-game-meta .arcade-record { color:var(--amber); }.arcade-game-play { margin-left:auto; color:var(--game-accent); font-weight:650; }
+.arcade-keyboard-hint { margin-top:22px; color:var(--muted-foreground); font-size:11px; }
+.arcade-how { padding:32px 0 48px; border-top:1px solid var(--border); }
+.arcade-how h2 { font:700 22px 'Space Grotesk',sans-serif; letter-spacing:-.03em; margin-bottom:28px; }
+.arcade-how ol { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:28px; }
+.arcade-how li { display:flex; align-items:flex-start; gap:14px; }.arcade-how li>svg { width:22px; height:22px; flex-shrink:0; color:var(--p1); }
+.arcade-how li strong { font-size:13px; }.arcade-how li p { font-size:12px; line-height:1.7; color:var(--muted-foreground); margin-top:6px; }
+.arcade-footer { max-width:1152px; margin:0 auto; padding:28px 0 36px; border-top:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:40px; }
+.arcade-footer strong { font:500 17px 'Space Grotesk',sans-serif; }.arcade-footer p { max-width:570px; margin-top:8px; font-size:11px; line-height:1.7; color:var(--muted-foreground); }
+.arcade-footer nav { max-width:290px; justify-content:flex-end; font-size:12px; }
+.arcade-header a:focus-visible,.arcade-filters button:focus-visible,.arcade-game:focus-visible { outline:3px solid var(--p1); outline-offset:3px; }
+@media(max-width:900px) {
+  .arcade-intro { gap:16px; }.gauntlet-lives { display:none; }.arcade-game-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .arcade-footer { margin-inline:24px; }.arcade-header-inner { gap:12px; }
+}
+@media(max-width:600px) {
+  .arcade-header-inner { padding:14px 16px; flex-wrap:wrap; min-height:70px; }.arcade-logo svg:first-child { width:26px; }
+  .arcade-header-actions { margin-left:auto; }.arcade-modes { order:3; width:100%; margin:0; }.arcade-modes a { flex:1; text-align:center; }
+  .arcade-content { padding-inline:16px; }.arcade-intro { grid-template-columns:1fr; padding:32px 0 24px; gap:12px; }
+  .arcade-intro h1 { font-size:38px; }.arcade-lede { font-size:14px; }.party-pose { max-width:280px; }
+  .gauntlet-strip { flex-wrap:wrap; gap:16px; }.gauntlet-heading { width:100%; }.gauntlet-strip>p { flex:1; }.gauntlet-strip>button { padding-inline:12px; font-size:12px; }
+  .arcade-games { padding-block:32px; }.arcade-section-heading { align-items:flex-start; flex-wrap:wrap; gap:16px; }.arcade-section-heading h2 { font-size:25px; }
+  .arcade-game-grid { grid-template-columns:1fr; gap:16px; }.arcade-game-preview { height:156px; }.arcade-game-copy { padding:16px; }
+  .arcade-filter-row { gap:8px; }.arcade-filters { gap:2px; }.arcade-filters button { padding:9px 10px; font-size:11px; }.arcade-game-count,.arcade-keyboard-hint { display:none; }
+  .arcade-how ol { grid-template-columns:1fr; gap:24px; }.arcade-how { padding-bottom:32px; }
+  .arcade-footer { margin-inline:16px; flex-direction:column; gap:20px; }.arcade-footer nav { justify-content:flex-start; }
+}
