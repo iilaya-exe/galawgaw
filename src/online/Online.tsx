@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Client, type Room as GameRoom } from '@colyseus/sdk';
 import { Room as VideoRoom, RoomEvent, Track } from 'livekit-client';
 import { api, API, type Snapshot, type OnlineGameMeta } from './api';
-import { openCamera } from './camera';
+import { openCamera, type LocalInput } from './camera';
 import { GameStage } from './GameStage';
 import { ONLINE_PROTOCOL } from '../game/onlineProtocol.js';
 import { unlock } from '../game/audio.js';
@@ -28,6 +28,11 @@ function OnlineGame() {
   const [busy, setBusy] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraBusy, setCameraBusy] = useState(false);
+  const [lowVideo, setLowVideo] = useState(true);
+  const localInput = useRef<LocalInput | null>(null);
+  const renderStats = useRef({ fps: 0 });
+  const networkStats = useRef({ ping: null as number | null, gap: 0, tick: 0, receivedAt: 0, nonce: 0 });
+  const [performanceInfo, setPerformanceInfo] = useState({ ping: null as number | null, gap: 0, tick: 0, fps: 0, tracking: 0, background: false });
   const [tracked, setTracked] = useState(false);
   const [consent, setConsent] = useState(false);
   const [mic, setMic] = useState(false);
@@ -59,6 +64,8 @@ function OnlineGame() {
   useEffect(() => { if (snapshot?.roomId) window.scrollTo(0, 0); }, [snapshot?.roomId]);
 
   const clean = () => {
+    localInput.current = null;
+    networkStats.current = { ping: null, gap: 0, tick: 0, receivedAt: 0, nonce: 0 };
     cameraAbort.current?.abort(); cameraAbort.current = null;
     camera.current?.close(); camera.current = null;
     void media.current?.disconnect(); media.current = null;
@@ -73,6 +80,18 @@ function OnlineGame() {
       if (data.protocol !== ONLINE_PROTOCOL) setError('The game server needs the latest update before this version can play online.');
     }).catch(e => setError(e.message));
     return () => { alive.current = false; clean(); };
+  }, []);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!room.current) return;
+      const network = networkStats.current;
+      setPerformanceInfo({ ping: network.ping, gap: Math.max(network.gap, network.receivedAt ? Math.round(performance.now() - network.receivedAt) : 0), tick: network.tick,
+        fps: renderStats.current.fps, tracking: camera.current?.stats.ms || 0, background: camera.current?.stats.worker || false });
+      if (room.current.connection.isOpen && performance.now() - network.nonce >= 2000) {
+        network.nonce = performance.now(); room.current.send('ping', network.nonce);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
   useEffect(() => {
     const remote = media.current?.remoteParticipants.values().next().value;
@@ -102,9 +121,18 @@ function OnlineGame() {
       const joined = await new Client(API).consumeSeatReservation(reservation);
       if (!alive.current) { await joined.leave(); return; }
       room.current = joined;
+      joined.onMessage('pong', ({ nonce, tickLagMs }: { nonce: number; tickLagMs: number }) => {
+        if (room.current !== joined || nonce !== networkStats.current.nonce) return;
+        networkStats.current.ping = Math.round(performance.now() - nonce);
+        networkStats.current.tick = tickLagMs;
+      });
       joined.onMessage('snapshot', (state: Snapshot) => {
         if (state.protocol !== ONLINE_PROTOCOL) { leave(); setError('The room uses a different game version. Refresh and try again.'); return; }
-        if (room.current === joined) setSnapshot(state);
+        if (room.current === joined) {
+          const now = performance.now(), stats = networkStats.current;
+          stats.gap = stats.receivedAt ? Math.round(now - stats.receivedAt) : 0; stats.receivedAt = now;
+          setSnapshot(state);
+        }
       });
       joined.onMessage('notice', (message: string) => setError(message));
       joined.onLeave(() => { if (room.current === joined) { clean(); setSnapshot(null); setCameraReady(false); setConnection(''); setError('Disconnected from the room. Join again to play.'); } });
@@ -126,14 +154,17 @@ function OnlineGame() {
     const activeRoom = room.current;
     try {
       const device = await openCamera(localVideo.current, abort.signal, (points, aspect, hands) => {
+        localInput.current = { points, hands, aspect, at: performance.now() };
         setTracked(snapshot.game.mode === 'hand' ? hands.length > 0 : !!points && [11, 12, 15, 16, 23, 24].every(i => points[i].visibility >= .35));
         if (room.current === activeRoom && activeRoom?.connection.isOpen) activeRoom.send('input', { landmarks: points, hands, aspect, sequence: sequence.current++ });
-      }, snapshot.game.mode, snapshot.game.hands);
+      }, snapshot.game.mode, snapshot.game.hands, lowVideo);
       camera.current = device;
       if (snapshot.mediaEnabled) {
         const credentials = await api<{ url: string; token: string }>(`/rooms/${snapshot.roomId}/media`, guest.token, {});
         if (abort.signal.aborted) { device.close(); return; }
-        const videoRoom = new VideoRoom({ adaptiveStream: true, dynacast: true }); media.current = videoRoom;
+        const videoRoom = new VideoRoom({ adaptiveStream: true, dynacast: true,
+          publishDefaults: { simulcast: false, videoEncoding: { maxBitrate: lowVideo ? 450_000 : 900_000, maxFramerate: lowVideo ? 24 : 30 } },
+        }); media.current = videoRoom;
         videoRoom.on(RoomEvent.TrackSubscribed, track => {
           setMediaVersion(v => v + 1);
           if (track.kind === Track.Kind.Audio && audioHost.current) { const el = track.attach(); audioHost.current.append(el); }
@@ -190,11 +221,12 @@ function OnlineGame() {
       <section className="online-room-head"><div><p className="online-eyebrow">{snapshot.public ? 'PUBLIC ROOM' : `PRIVATE ROOM · ${snapshot.roomId}`} · {snapshot.game.coop ? 'CO-OP' : 'VERSUS'}</p><h1>{snapshot.phase === 'over' ? (snapshot.game.coop ? snapshot.result?.title : snapshot.winner === null ? 'A draw!' : `${snapshot.players[snapshot.winner].name} wins!`) : snapshot.phase === 'paused' ? 'Waiting for your friend to reconnect…' : snapshot.phase === 'aborted' ? 'The match ended early.' : snapshot.game.title}</h1></div>
         <div className="online-status">{snapshot.recording && <span className="online-recording">● Recording</span>}<span>{connection}</span>{!snapshot.public && <button onClick={() => void copyInvite()}>Copy invite</button>}</div>
       </section>
-      <GameStage snapshot={snapshot} guestId={guest?.id} localVideo={localVideo} remoteVideo={remoteVideo} />
+      <GameStage snapshot={snapshot} guestId={guest?.id} localVideo={localVideo} remoteVideo={remoteVideo} localInput={localInput} renderStats={renderStats} />
       <section className="online-controls">
         {snapshot.phase === 'lobby' && <>
           <p>{!opponent ? snapshot.public ? 'Waiting for someone who picked this game…' : 'Share your room code and wait for a friend.' : snapshot.game.mode === 'hand' ? 'Raise your hands so the camera can see them.' : 'Step back until your upper body and hands fit in the camera.'}</p>
           <ol className="online-instructions">{snapshot.game.tutorial.map(t => <li key={t}>{t}</li>)}</ol>
+          {!cameraReady && <label>Camera quality<select value={lowVideo ? 'light' : 'standard'} disabled={cameraBusy} onChange={e => setLowVideo(e.target.value === 'light')}><option value="light">Lighter video (recommended)</option><option value="standard">Sharper video</option></select></label>}
           {!cameraReady && <button className="online-primary" disabled={cameraBusy} onClick={() => void enableCamera()}>{cameraBusy ? 'Starting camera and tracking…' : snapshot.mediaEnabled ? 'Enable & share my camera' : 'Enable my camera'}</button>}
           {cameraReady && <p>{tracked ? '✓ Movement tracked. You’re ready.' : snapshot.game.mode === 'hand' ? 'Show your hands to the camera.' : 'Step into frame with your hands and hips visible.'}</p>}
           {snapshot.highlightsEnabled && <label className="online-consent"><input type="checkbox" checked={consent} disabled={me?.ready} onChange={e => setConsent(e.target.checked)} />Allow recording of my camera and enabled microphone for a highlight that either player can share. Highlight access expires after 30 days. See the <a href="./privacy/#retention" target="_blank" rel="noopener noreferrer">Privacy Policy</a> for storage and deletion.</label>}
@@ -211,6 +243,7 @@ function OnlineGame() {
         {report && <form onSubmit={e => { e.preventDefault(); void api(`/rooms/${snapshot.roomId}/report`, guest!.token, { reason }).then(() => { leave(); setError('Report saved. This guest player is blocked from your future matches.'); }).catch(e => setError(e.message)); }}><label>What happened?<textarea minLength={3} maxLength={500} required value={reason} onChange={e => setReason(e.target.value)} /></label><button type="submit">Send report and leave</button></form>}
       </section>
       <div ref={audioHost} />
+      <details className="online-performance"><summary>Connection &amp; performance</summary><p>{performanceInfo.fps} FPS · Tracking: {performanceInfo.tracking} ms ({performanceInfo.background ? 'background' : 'compatibility mode'})<br />Server round trip: {performanceInfo.ping === null ? 'Measuring…' : `${performanceInfo.ping} ms`} · Server delay: {performanceInfo.tick} ms · Update gap: {performanceInfo.gap} ms</p><p>High tracking time points to the device; a high round trip points to the connection or server location. Lobby updates arrive less often to save resources.</p></details>
     </>}
     <footer className="mt-12 border-t border-white/10 py-8"><SiteLinks /></footer>
   </main>;

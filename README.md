@@ -67,6 +67,38 @@ Configure the applicable consent message in AdSense's **Privacy & messaging**
 and review actual vendor settings; adding these pages does not configure a CMP
 or guarantee AdSense approval. Informational pages do not load ad scripts.
 
+## Performance and connection checks
+
+Hand and body tracking run in a background worker when supported, with a
+throttled main-thread fallback. Only one camera frame can be processed at a
+time; duplicate frames and stale results are dropped. Tracking slows down
+automatically when inference is expensive. Local play uses a 640×360 camera;
+online play defaults to 640×360 at 24 fps. The lobby's **Sharper video** option
+uses 960×540 at 30 fps and also improves the source quality of recorded clips.
+
+Online controls use fresh local landmarks for immediate visual feedback.
+Scoring and collisions remain server-owned. Selected moving targets project
+forward by at most 80 ms between updates and stop projecting when paused.
+This reduces visible waiting but cannot eliminate distance to the server.
+
+Open **Connection & performance** in an online room to compare rendering FPS,
+tracking time, server round trip, server scheduling delay, and update gap.
+Lobby snapshots intentionally arrive about twice per second; playing snapshots
+arrive up to 20 times per second. These are diagnostics, not a speed guarantee.
+
+Run `npm test` and `npm run build`. For browser tracking checks, run
+`npm run dev`, open `/test/tracking.html`, keep the tab visible, and click
+**Run checks**. It uses synthetic video without camera/microphone permission
+to test hand/pose workers, fallback, duplicate frames, and cancellation.
+Real motion accuracy, low-end phones, and LiveKit recording still need a
+two-device test after deployment. Keep both players in-frame during that test.
+
+Build hooks copy the installed MediaPipe runtime into `public/tracking/`;
+this generated directory is ignored by Git and included in the production build.
+Commit the source, worker, preparation script, and tests. Deploy the updated
+backend and highlight worker first, then this frontend. No new variables or
+database migration are needed for these performance changes.
+
 ## Project layout
 
 ```text

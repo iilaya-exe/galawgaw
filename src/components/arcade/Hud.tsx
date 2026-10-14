@@ -172,7 +172,7 @@ function StatusCluster() {
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="font-mono">
-          {telemetry.fps} fps · {telemetry.delegate ?? "—"} tracking
+          {telemetry.fps} fps · {telemetry.trackingMs} ms tracking · {telemetry.delegate ?? "—"}{telemetry.worker ? " · background" : ""}
           {telemetry.delegate === "CPU" ? " (no hardware acceleration)" : ""}
         </TooltipContent>
       </Tooltip>

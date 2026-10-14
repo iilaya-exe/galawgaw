@@ -7,8 +7,8 @@ import tailwindcss from "@tailwindcss/vite";
 // runtime needs to run multi-threaded. Without it the tracker silently runs
 // single-threaded — on the CPU delegate, the difference between a playable
 // match and a slideshow. `credentialless` (rather than `require-corp`) keeps
-// the cross-origin loads working: the WASM from jsdelivr and the models from
-// storage.googleapis.com. Production hosts get the same pair from
+// the cross-origin model loads from storage.googleapis.com working. The WASM
+// runtime is served locally. Production hosts get the same pair from
 // vercel.json / public/_headers.
 const isolation = {
   "Cross-Origin-Opener-Policy": "same-origin",

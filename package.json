@@ -4,10 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.mjs",
     "pages": "node scripts/build-pages.mjs",
-    "predev": "npm run pages",
+    "predev": "npm run pages && node scripts/prepare-tracking.mjs",
     "dev": "vite",
-    "prebuild": "npm run pages",
+    "prebuild": "npm run pages && node scripts/prepare-tracking.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b"

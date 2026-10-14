@@ -1,5 +1,5 @@
 // Shared with the server via scripts/sync-games.mjs in Galawgaw_Backend.
-// Clients draw server snapshots; only the server calls update/onResults.
+// Clients draw server snapshots and overlay current controls; only the server calls update.
 import { createSignalPop } from './signalPop.js';
 import { createWhackAMole } from './whackAMole.js';
 import { createCopyPose } from './copyPose.js';
@@ -49,7 +49,10 @@ export function mapOnlineLandmarks(points, side, aspect, gameId) {
 // Ignore helpers with closures and functions. Nested pose definitions keep
 // their labels/arms for drawing, while checks remain exclusively on the server.
 export function gameFrame(game) {
-  return JSON.parse(JSON.stringify(game, (key, value) =>
+  // The renderer initializes these once; repeating tutorials and metadata in
+  // every 50 ms frame wastes bandwidth and serialization time.
+  const { title, icon, blurb, hint, tutorial, mode, numHands, numPoses, ...state } = game;
+  return JSON.parse(JSON.stringify(state, (key, value) =>
     ['fx', 'shake', 'tracker', 'meter', 'previous', 'base'].includes(key) || typeof value === 'function' ? undefined
       : typeof value === 'number' ? Math.round(value * 10000) / 10000 : value));
 }

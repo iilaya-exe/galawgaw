@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Snapshot } from './api';
-import { createOnlineGame, applyGameFrame } from '../game/onlineProtocol.js';
+import { createOnlineGame, applyGameFrame, mapOnlineLandmarks } from '../game/onlineProtocol.js';
+import { presentFrame } from './presentation';
+import type { LocalInput } from './camera';
 import { sfx, isMuted, setMuted } from '../game/audio.js';
 
 // Draw only: the browser never advances rules or submits a score.
-export function GameStage({ snapshot, guestId, localVideo, remoteVideo }: {
+export function GameStage({ snapshot, guestId, localVideo, remoteVideo, localInput, renderStats }: {
   snapshot: Snapshot; guestId?: string;
   localVideo: React.RefObject<HTMLVideoElement | null>; remoteVideo: React.RefObject<HTMLVideoElement | null>;
+  localInput: React.RefObject<LocalInput | null>;
+  renderStats: React.RefObject<{ fps: number }>;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const latest = useRef(snapshot); latest.current = snapshot;
+  const latest = useRef(snapshot);
+  const receivedAt = useRef(performance.now());
+  if (latest.current !== snapshot) { latest.current = snapshot; receivedAt.current = performance.now(); }
   const shared = snapshot.gameId === 'hullbreach';
   const previous = useRef(snapshot);
   const [muted, mute] = useState(isMuted);
@@ -27,22 +33,38 @@ export function GameStage({ snapshot, guestId, localVideo, remoteVideo }: {
   useEffect(() => {
     const game = createOnlineGame(snapshot.gameId) as any;
     let frame = 0;
-    const draw = () => {
+    let frames = 0, measuredAt = performance.now(), lastDraw = 0;
+    const draw = (now: number) => {
+      frame = requestAnimationFrame(draw);
+      if (document.hidden || now - lastDraw < 15) return;
+      lastDraw = now;
+      frames++;
+      if (now - measuredAt >= 1000) { renderStats.current.fps = Math.round(frames * 1000 / (now - measuredAt)); frames = 0; measuredAt = now; }
       const state = latest.current;
       const el = canvas.current;
       const ctx = el?.getContext('2d');
       if (el && ctx && state.gameId === game.id) {
-        applyGameFrame(game, state.frame);
+        applyGameFrame(game, presentFrame(state.gameId, state.frame, now - receivedAt.current, state.phase === 'playing'));
+        const input = localInput.current;
+        if (input && now - input.at < 250 && (state.phase === 'playing' || state.phase === 'lobby' || state.phase === 'countdown')) {
+          const slots = state.players.map((p, side) => {
+            const points = p.id === guestId ? input.points : p.landmarks;
+            return points ? mapOnlineLandmarks(points, side, p.id === guestId ? input.aspect : p.aspect, state.gameId) : null;
+          });
+          if (game.tracker) game.tracker.assign = () => slots;
+          const hands = state.players.flatMap((p, side) => (p.id === guestId ? input.hands : p.hands || []).map(hand =>
+            mapOnlineLandmarks(hand, side, p.id === guestId ? input.aspect : p.aspect, state.gameId)));
+          game.onResults(state.game.mode === 'pose' ? slots.filter(Boolean) : hands);
+        }
         ctx.clearRect(0, 0, el.width, el.height);
         ctx.save();
         game.draw(ctx);
         ctx.restore();
       }
-      frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [snapshot.gameId]);
+  }, [snapshot.gameId, guestId, localInput, renderStats]);
   const players = [snapshot.players[0], snapshot.players[1]];
   return <section className={`online-stage ${shared ? 'online-stage-shared' : ''}`} aria-label={`${snapshot.game.title} play area`}>
     <div className="online-game-hud">

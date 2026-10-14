@@ -13,6 +13,8 @@
 .online h1 em { color:#22e6c8; font-style:normal; }
 .online p { color:#b2bfd5; line-height:1.65; }
 .online-entry { max-width:550px; margin:50px auto; display:flex; flex-direction:column; gap:20px; }
+.online-performance { max-width:760px; margin:24px auto; color:#b2bfd5; font-size:13px; }
+.online-performance summary { cursor:pointer; }
 .online-entry h1 { font-size:clamp(42px,7vw,76px); }
 .online select { width:100%; background:#131c2d; color:white; border:1px solid #34405a; padding:14px; border-radius:10px; }
 .online-stage { max-width:1400px; margin:20px auto; background:#101725; border-radius:16px; padding:12px; }

@@ -1,4 +1,4 @@
-import type { HandLandmarker, PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+import { createTracker, type Tracker } from "@/tracking/tracker";
 import { toast } from "sonner";
 import { startPreviews, stopPreviews, measurePreviews } from "@/game/previews.js";
 import { sfx, unlock, isMuted, setMuted } from "@/game/audio.js";
@@ -16,11 +16,6 @@ import {
    <video> and <canvas> it is attached to.
    ═══════════════════════════════════════════════════════════════════ */
 
-// Must match the installed @mediapipe/tasks-vision version exactly.
-const WASM_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
-const POSE_MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
-const HAND_MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
-
 // The gauntlet is a last-player-standing format, so it can only draw on
 // versus channels — a co-op round has no loser to take a life from.
 const VERSUS_GAMES = GAMES.filter((_, index) => !META[index].coop);
@@ -28,7 +23,7 @@ const VERSUS_GAMES = GAMES.filter((_, index) => !META[index].coop);
 const set = useArcade.setState;
 const get = useArcade.getState;
 
-type Landmarker = HandLandmarker | PoseLandmarker;
+type Landmarker = Tracker;
 type Point = { x: number; y: number; z?: number };
 
 let video: HTMLVideoElement | null = null;
@@ -54,7 +49,8 @@ let cameraStream: MediaStream | null = null;
 const landmarkers = new Map<string, Landmarker>();  // "hand:4" -> instance, so numHands is honoured
 let rafId: number | null = null;
 let lastFrameTime = 0;
-let lastVideoTime = -1;
+let lastDetectionTime = 0;
+let trackerAbort: AbortController | null = null;
 let sequenceToken = 0;        // cancels an in-flight countdown/boot
 let subjects = 0;
 let lastResults: Point[][] = [];
@@ -144,17 +140,12 @@ function setTelemetry(patch: Partial<ArcadeState["telemetry"]>) {
 
 async function startCamera() {
   if (cameraLive() || !video) return;
-  /* 540p at 30fps, not 720p at whatever the camera offers. The tracking
-     models downscale to their own fixed input either way, so the extra
-     pixels buy no accuracy — they only cost decode, upload and the CSS
-     grade, every frame. The frame-rate cap matters just as much: detection
-     runs once per *new camera frame*, so a 60fps webcam quietly doubles the
-     inference bill for nothing. */
+  // Modest camera resolution leaves GPU time for tracking and drawing.
   cameraStream = await navigator.mediaDevices.getUserMedia({
     video: {
       facingMode: "user",
-      width: { ideal: 960 },
-      height: { ideal: 540 },
+      width: { ideal: 640 },
+      height: { ideal: 360 },
       frameRate: { ideal: 30, max: 30 },
     },
     audio: false,
@@ -165,68 +156,34 @@ async function startCamera() {
   }
   await video.play();
   syncVideoSize();
-  lastVideoTime = -1;
+  lastDetectionTime = 0;
   setTelemetry({ camera: true });
 }
 
 function stopCamera() {
+  trackerAbort?.abort(); trackerAbort = null;
+  landmarkers.forEach(tracker => tracker.close()); landmarkers.clear();
   cameraStream?.getTracks().forEach((track) => track.stop());
   cameraStream = null;
   if (video) video.srcObject = null;
-  lastVideoTime = -1;
+  lastDetectionTime = 0;
   setTelemetry({ camera: false, subjects: 0 });
 }
 
-// The tracker is most of the bundle, and the menu needs none of it, so it
-// loads on the first launch rather than holding up the first paint.
-const loadTasks = () => import("@mediapipe/tasks-vision");
-let visionPromise: ReturnType<typeof FilesetResolver.forVisionTasks> | null = null;
-function getVision() {
-  visionPromise ??= loadTasks().then(({ FilesetResolver }) => FilesetResolver.forVisionTasks(WASM_BASE));
-  return visionPromise;
-}
-
 const landmarkerKey = (game: GameInstance) =>
-  `${game.mode}:${game.mode === "pose" ? (game.numPoses || 2) : (game.numHands || 2)}`;
-
-// Cached per mode *and* per hand count — Whack-a-Mole needs four hands,
-// the others only two, and a landmarker's numHands is fixed at creation.
+  game.mode + ':' + (game.mode === 'pose' ? (game.numPoses || 2) : (game.numHands || 2));
 async function getLandmarker(game: GameInstance): Promise<Landmarker> {
   const key = landmarkerKey(game);
   const cached = landmarkers.get(key);
   if (cached) return cached;
-  const count = Number(key.split(":")[1]);
-  const vision = await getVision();
-  const { HandLandmarker, PoseLandmarker } = await loadTasks();
-
-  const build = (delegate: "GPU" | "CPU"): Promise<Landmarker> => (game.mode === "pose"
-    ? PoseLandmarker.createFromOptions(vision, {
-        baseOptions: { modelAssetPath: POSE_MODEL, delegate },
-        runningMode: "VIDEO",
-        numPoses: count,
-      })
-    : HandLandmarker.createFromOptions(vision, {
-        baseOptions: { modelAssetPath: HAND_MODEL, delegate },
-        runningMode: "VIDEO",
-        numHands: count,
-      }));
-
-  // The GPU delegate is the fast path but is not available everywhere —
-  // WebKit in particular can refuse it. Falling back to CPU keeps the game
-  // playable at a lower frame rate instead of failing outright.
-  let instance: Landmarker;
-  try {
-    instance = await build("GPU");
-    setTelemetry({ delegate: "GPU" });
-  } catch (error) {
-    console.warn("GPU delegate unavailable, falling back to CPU", error);
-    instance = await build("CPU");
-    setTelemetry({ delegate: "CPU" });
-    flash("GPU unavailable — tracking is running on the CPU", 3200);
-  }
-
-  landmarkers.set(key, instance);
-  return instance;
+  trackerAbort?.abort();
+  landmarkers.forEach(tracker => tracker.close()); landmarkers.clear();
+  const abort = new AbortController(); trackerAbort = abort;
+  const tracker = await createTracker(game.mode, Number(key.split(':')[1]), abort.signal);
+  if (abort.signal.aborted) { tracker.close(); throw new Error('Tracking cancelled.'); }
+  landmarkers.set(key, tracker);
+  setTelemetry({ delegate: tracker.stats.delegate, worker: tracker.stats.worker });
+  return tracker;
 }
 
 function setStep(step: keyof ArcadeState["steps"], value: ArcadeState["steps"]["cam"]) {
@@ -523,20 +480,20 @@ function stopLoop() {
 }
 
 function detect(timestampMs: number) {
-  if (!currentGame || !video || video.readyState < 2) return;
-  // Feeding MediaPipe the same frame twice is wasted work (and some builds
-  // reject a non-advancing timestamp), so only run on a fresh frame.
-  if (video.currentTime === lastVideoTime) return;
-  lastVideoTime = video.currentTime;
-
-  const landmarker = landmarkers.get(landmarkerKey(currentGame));
-  if (!landmarker) return;
-
-  const result = landmarker.detectForVideo(video, timestampMs);
-  const found = (result.landmarks || []) as Point[][];
-  subjects = found.length;
-  lastResults = found;
-  currentGame.onResults(found);
+  if (!currentGame || !video) return;
+  const game = currentGame;
+  const token = sequenceToken;
+  const phase = get().phase;
+  const tracker = landmarkers.get(landmarkerKey(game));
+  if (!tracker) return;
+  void tracker.detect(video, timestampMs).then(found => {
+    if (found === null || token !== sequenceToken || game !== currentGame || phase !== get().phase) return;
+    lastDetectionTime = performance.now(); subjects = found.length; lastResults = found;
+    game.onResults(found);
+  }).catch(() => { /* Failed frames must not stop animation. */ });
+  if (subjects && timestampMs - lastDetectionTime > 300) {
+    subjects = 0; lastResults = []; game.onResults([]);
+  }
 }
 
 function tick(now: number) {
@@ -647,7 +604,9 @@ function measureFps(now: number) {
   if (now - fpsLastReport < 500) return;
   fpsLastReport = now;
   const fps = fpsSamples.length;
-  setTelemetry({ fps });
+  const tracker = currentGame && landmarkers.get(landmarkerKey(currentGame));
+  setTelemetry({ fps, trackingMs: tracker?.stats.ms || 0, worker: tracker?.stats.worker || false,
+    delegate: tracker?.stats.delegate || null });
   considerPerfMode(fps, now);
 }
 

@@ -92,7 +92,7 @@ export interface ArcadeState {
   series: SeriesState;
   result: Result | null;
   autoNext: { active: boolean; seconds: number; ratio: number };
-  telemetry: { fps: number; subjects: number; delegate: "GPU" | "CPU" | null; camera: boolean };
+  telemetry: { trackingMs: number; worker: boolean; fps: number; subjects: number; delegate: "GPU" | "CPU" | null; camera: boolean };
   muted: boolean;
   perfLow: boolean;
   records: Record<string, number>;
@@ -129,7 +129,7 @@ export const useArcade = create<ArcadeState>()(() => ({
   series: initialSeries(3),
   result: null,
   autoNext: { active: false, seconds: 0, ratio: 0 },
-  telemetry: { fps: 0, subjects: 0, delegate: null, camera: false },
+  telemetry: { trackingMs: 0, worker: false, fps: 0, subjects: 0, delegate: null, camera: false },
   muted: false,
   perfLow: false,
   records: {},

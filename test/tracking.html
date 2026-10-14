@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Tracking smoke test</title></head>
+<body><h1>Background tracking test</h1><p>Uses a synthetic video only. No camera or microphone access.</p><button id="start">Run checks</button><pre id="results" role="status">Ready</pre><video id="video" muted playsinline width="320"></video>
+<script type="module">
+import { createTracker } from '../src/tracking/tracker.ts';
+const output = document.querySelector('#results');
+document.querySelector('#start').onclick = async () => {
+  output.textContent = 'Running…';
+  const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 360;
+  const ctx = canvas.getContext('2d'); let n = 0;
+  const draw = setInterval(() => { ctx.fillStyle = '#303030'; ctx.fillRect(0,0,640,360); ctx.fillStyle='#fff'; ctx.fillRect(n++ % 600,80,20,20); }, 33);
+  const stream = canvas.captureStream(30); const video = document.querySelector('#video'); video.srcObject = stream;
+  const messages = []; let tracker;
+  const log = text => { messages.push(text); output.textContent = messages.join('\n'); };
+  try {
+    await video.play();
+    for (const [mode, count, background] of [['hand',2,true],['pose',2,true],['hand',1,false]]) {
+      const abort = new AbortController();
+      tracker = await createTracker(mode, count, abort.signal, background);
+      log(`${mode} ${count}: initialized (${tracker.stats.worker ? 'worker' : 'main'}, ${tracker.stats.delegate})`);
+      if (background && !tracker.stats.worker) throw Error('Worker unexpectedly fell back');
+      const pending = tracker.detect(video, performance.now());
+      const duplicate = await tracker.detect(video, performance.now()+1);
+      if (duplicate !== null) throw Error('Duplicate frame was not dropped');
+      const found = await pending;
+      if (background && !tracker.stats.worker) throw Error('Worker failed during inference');
+      if (!Array.isArray(found)) throw Error(`No frame processed (page hidden: ${document.hidden})`);
+      log(`PASS frame, duplicate dropped; ${tracker.stats.ms}ms inference`);
+      const samples = [];
+      const deadline = performance.now() + 15000;
+      while (samples.length < 5 && performance.now() < deadline) {
+        await new Promise(requestAnimationFrame);
+        const result = await tracker.detect(video, performance.now());
+        if (result !== null) samples.push(tracker.stats.ms);
+      }
+      if (samples.length !== 5 || (background && !tracker.stats.worker)) throw Error('Continuous inference failed');
+      log(`PASS continuous frames: ${samples.join(', ')}ms`);
+      abort.abort();
+      if (await tracker.detect(video, performance.now()+500) !== null) throw Error('Aborted tracker still active');
+      log('PASS abort closes tracker');
+      tracker = null;
+    }
+    const cancelled = new AbortController(); cancelled.abort();
+    await createTracker('hand',1,cancelled.signal).then(() => { throw Error('Pre-aborted initialization succeeded'); }, () => log('PASS cancelled initialization'));
+    log('ALL CHECKS PASSED');
+  } catch (error) { log(`FAIL: ${error.message}`); }
+  finally { tracker?.close(); clearInterval(draw); stream.getTracks().forEach(t=>t.stop()); video.srcObject=null; }
+};
+</script></body></html>
