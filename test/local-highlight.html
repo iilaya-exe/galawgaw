@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Local highlight smoke check — synthetic video only</title>
+<style>body{font:16px system-ui;background:#080b15;color:white;padding:24px}video,canvas{width:320px}button,a{padding:12px;margin:8px;color:#22e6c8}</style>
+<h1>Local highlight smoke check</h1>
+<p>No webcam or microphone is used. A generated video exercises the real clip encoder.</p>
+<button id="start">Start synthetic round</button><button id="finish">Finish round</button><button id="discard">Discard clip</button>
+<p id="status">Idle</p><video id="camera" muted playsinline></video><canvas id="board" width="640" height="360"></canvas>
+<video id="result" controls playsinline></video><a id="download">Download test clip</a>
+<script type="module">
+import { enableLocalHighlights, startLocalHighlight, drawLocalHighlight, finishLocalHighlight, clearLocalHighlight, useLocalHighlight, cancelLocalCapture } from '/src/engine/localHighlights.ts';
+const source=document.createElement('canvas'); source.width=640; source.height=360;
+const ctx=source.getContext('2d'), board=document.querySelector('#board'), game=board.getContext('2d'), video=document.querySelector('#camera');
+let stream, timer, active=false, began=0;
+document.querySelector('#start').onclick=async()=>{
+  if(active)return; active=true; began=performance.now();
+  stream=source.captureStream(15);video.srcObject=stream;
+  ctx.fillStyle='#243040';ctx.fillRect(0,0,640,360);
+  await video.play();
+  enableLocalHighlights(true);startLocalHighlight('Synthetic round');
+  timer=setInterval(()=>{
+    const now=performance.now(),seconds=(now-began)/1000;
+    ctx.fillStyle='#243040';ctx.fillRect(0,0,640,360);ctx.fillStyle='#22e6c8';ctx.fillRect(30+(seconds*60)%550,50,60,240);
+    game.clearRect(0,0,640,360);game.fillStyle='#ff4f8d';game.beginPath();game.arc(450,180,30,0,Math.PI*2);game.fill();
+    drawLocalHighlight(video,board,now,[String(Math.floor(seconds)), '2']);
+  },50);
+};
+document.querySelector('#finish').onclick=()=>{active=false;clearInterval(timer);finishLocalHighlight();stream?.getTracks().forEach(t=>t.stop());};
+document.querySelector('#discard').onclick=clearLocalHighlight;
+useLocalHighlight.subscribe(state=>{
+  document.querySelector('#status').textContent=state.recording?'Recording':state.processing?'Processing':state.file?`Ready: ${state.file.size} bytes (${state.file.type})`:state.message||'Idle';
+  const result=document.querySelector('#result'); if(state.url && result.src!==state.url)result.src=state.url;
+  if(!state.url){result.removeAttribute('src');result.load();}
+  const link=document.querySelector('#download');link.href=state.url;link.download=state.file?.name||'';
+});
+window.addEventListener('pagehide',()=>{clearInterval(timer);cancelLocalCapture();stream?.getTracks().forEach(t=>t.stop());clearLocalHighlight();});
+</script>

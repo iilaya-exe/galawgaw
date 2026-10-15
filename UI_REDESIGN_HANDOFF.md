@@ -183,3 +183,25 @@ The earlier local-backend connection problem was resolved during the continuatio
 - Keep online games sourced from `/api/config`; do not hardcode a frontend-only game list that could drift from the server.
 - Preserve room/query/hash behavior for invite links and shared clips.
 - Do not deploy or push until the final checks pass and the user asks for deployment/pushing.
+
+## Gameplay follow-up — 15 October 2026
+
+This section supersedes the earlier working-tree list and visual-only scope for the follow-up request. Changes are implemented locally in both galawgaw and Galawgaw_Backend; they are not committed or deployed.
+
+- Restored the three setup steps directly below the homepage introduction. Gave Gauntlet a stronger amber treatment and separate same-screen/online actions.
+- Added optional same-screen highlights: silent, captioned, local video; one 640×360 encoder at 15 fps; independently playable ten-second segments ranked by score changes. Only the best segment is retained. Clips can be previewed, downloaded, shared where file sharing is supported, or discarded. No cloud upload occurs. Recording defaults off and stops in the engine's low-performance mode. Watching a clip cancels local Gauntlet's automatic next-round timer.
+- Added online Gauntlet: three lives, random versus games without immediate repeats, round history and a champion. Ties use game tiebreaks, then fewer remaining lives, then a coin toss so the series finishes.
+- Online readiness now arms the player first, then requires both players' appropriate landmarks in frame for one second before a three-second countdown. Leaving position cancels the countdown. The server owns this decision.
+- Added a persistent results lounge. Both players vote to continue; the host chooses the next game after ordinary matches or a completed Gauntlet. Each round gets a fresh match ID, input state and recording consent. Cameras remain connected in the lounge; trackers are released and reopened for the next game's model.
+- Signal Pop, Whack-a-Mole and Copy the Pose now last 60 seconds locally and online. Other game-specific win conditions and timings remain intact.
+- Kept background tracking, render budgets, lightweight camera defaults and server update cadence. No dependencies or additional rendering loop were added. Recording still has a device cost when enabled; real low-end-device benchmarking remains necessary.
+
+### Validation and deployment
+
+- Frontend: all 11 tests passed and production build passed.
+- Backend: all 29 tests passed across the suite and focused integration rerun; production build passed. The real two-client integration covered readiness, countdown cancellation, scoring, reconnect, natural finish, host selection and returning together to a fresh Gauntlet lobby. Initial sandbox loopback isolation required rerunning that integration test outside the sandbox.
+- Browser: inspected desktop homepage and online Gauntlet lobby; created and left a real local Gauntlet room. Native MediaRecorder smoke fixture produced a playable 640×360 VP8 clip (120,851 bytes, media ready state 4, no decoder error). Fixture is at /test/local-highlight.html in the development server and uses synthetic video, not a camera.
+- The browser viewport override did not reliably apply the requested 390px width. A 699px view was observed without horizontal overflow, but narrow-phone validation remains outstanding.
+- Still required: real two-device camera/LiveKit recording and rematch check, Safari/iPhone recording compatibility, and low-end phone performance measurement. Cloud services were disabled for local browser tests.
+- Deploy frontend and backend together: the shared online protocol is now version 3. An older backend is intentionally rejected by the new frontend. No new service or environment variable is needed for same-screen recording.
+- Preview used http://127.0.0.1:5174/ with an isolated backend on localhost:2567. No cloud services were used.

@@ -4,6 +4,7 @@ import { useArcade } from "@/engine/store";
 import { cn } from "@/lib/utils";
 import { TopBar } from "./Hud";
 import { Overlays } from "./Overlays";
+import { useLocalHighlight } from '@/engine/localHighlights';
 
 /* The full-screen play surface. It stays mounted (just invisible) while the
    menu is up, so the engine always has a sized <video> and <canvas>. */
@@ -11,6 +12,7 @@ export function Stage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const active = useArcade((s) => s.phase !== "menu");
+  const recording = useLocalHighlight(s => s.recording);
 
   useEffect(() => attach(videoRef.current!, canvasRef.current!), []);
 
@@ -27,6 +29,7 @@ export function Stage() {
       <div className="stage-vignette pointer-events-none absolute inset-0" aria-hidden="true" />
       <canvas ref={canvasRef} className="absolute inset-0 size-full" />
       <TopBar />
+      {recording && <span className="local-recording-indicator" role="status">● Highlight recording · on this device</span>}
       <Overlays />
     </div>
   );

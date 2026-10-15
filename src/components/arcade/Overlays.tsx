@@ -4,7 +4,7 @@ import {
   ArrowRight, CameraOff, Check, CircleDashed, Dices, LayoutGrid, Loader2, Pause, Play, RotateCcw, SkipForward, Trophy,
 } from "lucide-react";
 import {
-  finishWarmup, primaryAction, resume, retry, returnToMenu,
+  finishWarmup, primaryAction, resume, retry, returnToMenu, cancelAutoNext,
 } from "@/engine/engine";
 import { useArcade, type SlotState, type StepState } from "@/engine/store";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Lives } from "./Lives";
+import { LocalHighlight } from './LocalHighlight';
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -357,6 +358,8 @@ function ResultsOverlay() {
             <Progress value={autoNext.ratio * 100} indicatorClassName="bg-amber transition-transform duration-200 ease-linear" className="h-1.5 bg-amber/15" />
           </div>
         )}
+
+        <LocalHighlight onWatch={cancelAutoNext} />
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button size="lg" className="flex-1 short:h-10" onClick={primaryAction} autoFocus>

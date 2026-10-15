@@ -24,4 +24,6 @@ export type Snapshot = {
   roomId: string; matchId: string; phase: 'lobby' | 'preparing' | 'countdown' | 'playing' | 'paused' | 'over' | 'aborted';
   serverNow: number; startedAt: number; remaining: number; winner: number | null; players: OnlinePlayer[];
   mediaEnabled: boolean; highlightsEnabled: boolean; recording: boolean; public: boolean;
+  positioned: boolean[]; saving: boolean; nextChoice: string; nextVotes: string[];
+  series: { lives: [number, number]; round: number; over: boolean; history: { game: string; winner: number; reason: string }[] } | null;
 };

@@ -81,6 +81,7 @@ export function GameStage({ snapshot, guestId, localVideo, remoteVideo, localInp
         </div>)}
       </div>
       <canvas ref={canvas} width={shared ? 960 : 1280} height={shared ? 540 : 360} />
+      {snapshot.phase === 'countdown' && <div className="online-board-countdown" role="status"><strong>{Math.max(1, Math.ceil((snapshot.startedAt - snapshot.serverNow) / 1000))}</strong><span>Hold your position. Here we go.</span></div>}
     </div>
     <div className="online-stage-toolbar"><p className="online-fine">{shared ? 'Shared board: either player can cover any leak.' : `You are P${players.findIndex(p => p?.id === guestId) + 1}. Your entire camera controls your side.`} For a larger play area, use landscape or fullscreen.</p>
     <div><button onClick={() => { void canvas.current?.closest('section')?.requestFullscreen().catch(() => {}); }}>Fullscreen</button>

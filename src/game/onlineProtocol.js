@@ -11,7 +11,7 @@ import { createTugOfWar } from './tugOfWar.js';
 import { createVaultSync } from './vaultSync.js';
 import { createEcho } from './echoGame.js';
 
-export const ONLINE_PROTOCOL = 2;
+export const ONLINE_PROTOCOL = 3;
 export const FACTORIES = [createSignalPop, createWhackAMole, createCopyPose, createIceBreaker,
   createHullBreach, createFreezeFrame, createBeamDodge, createTugOfWar, createVaultSync, createEcho];
 export const ONLINE_GAMES = FACTORIES.map(factory => {

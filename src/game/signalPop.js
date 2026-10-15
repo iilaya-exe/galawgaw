@@ -13,7 +13,7 @@ const RISE_MIN = 66;              // was 60  (+10% speed)
 const RISE_SPREAD = 77;           // was 70  (+10% speed)
 const BOMB_CHANCE = 0.2;
 const BOMB_PENALTY = 5;
-const MATCH_TIME = 30;
+const MATCH_TIME = 60;
 const STREAK_FOR_X2 = 5;
 const STREAK_FOR_X3 = 12;
 

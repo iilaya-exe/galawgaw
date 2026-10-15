@@ -14,7 +14,7 @@ export function ArcadeHeader({ online = false, onHome, action }: { online?: bool
 }
 
 export function ArcadeFooter() {
-  return <footer className="arcade-footer"><div><strong>Good company. Questionable moves.</strong><p>Same-screen video stays on your device. Online play shares movement and, when enabled, video. Recording is optional for both players.</p></div><SiteLinks /></footer>;
+  return <footer className="arcade-footer"><div><strong>Good company. Questionable moves.</strong><p>Same-screen video stays on your device unless you share a clip. Online play shares movement and, when enabled, video. Recording is optional for both players.</p></div><SiteLinks /></footer>;
 }
 
 // Static artwork: no animation loop, external asset, or camera work.

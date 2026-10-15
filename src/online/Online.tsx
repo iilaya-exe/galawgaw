@@ -38,9 +38,9 @@ function OnlineGame() {
   const [mic, setMic] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [connection, setConnection] = useState('');
-  const [features, setFeatures] = useState<{ publicPlay: boolean; protocol?: number; games: OnlineGameMeta[] }>({ publicPlay: false, games: [] });
-  const [gameId, setGameId] = useState('copypose');
-  const selectedGame = features.games.find(g => g.id === gameId);
+  const [features, setFeatures] = useState<{ publicPlay: boolean; gauntlet?: boolean; protocol?: number; games: OnlineGameMeta[] }>({ publicPlay: false, games: [] });
+  const [gameId, setGameId] = useState(new URLSearchParams(location.search).get('mode') === 'gauntlet' ? 'gauntlet' : 'copypose');
+  const selectedGame = gameId === 'gauntlet' ? { title: 'The Gauntlet', blurb: 'Random versus games. Three lives each. Stay together until one player takes the crown.' } : features.games.find(g => g.id === gameId);
   const compatible = features.protocol === ONLINE_PROTOCOL;
   const [mediaVersion, setMediaVersion] = useState(0);
   const [lastHighlight, setLastHighlight] = useState(savedHighlight);
@@ -60,8 +60,28 @@ function OnlineGame() {
   phase.current = snapshot?.phase;
   const me = snapshot?.players.find(p => p.id === guest?.id);
   const opponent = snapshot?.players.find(p => p.id !== guest?.id);
+  const lastMatch = useRef<string | null>(null);
+  const currentMatch = useRef(snapshot);
+  currentMatch.current = snapshot;
 
   useEffect(() => { if (snapshot?.roomId) window.scrollTo(0, 0); }, [snapshot?.roomId]);
+
+  // Each round can use a different model. Release the old model/track before
+  // opening the next one; never run two trackers or encoders together.
+  useEffect(() => {
+    if (!snapshot) { lastMatch.current = null; return; }
+    const previous = lastMatch.current; lastMatch.current = snapshot.matchId;
+    if (!previous || previous === snapshot.matchId) return;
+    const hadCamera = !!camera.current;
+    cameraAbort.current?.abort(); camera.current?.close(); camera.current = null;
+    const oldMedia = media.current; media.current = null;
+    localInput.current = null; setTracked(false); setCameraReady(false); setMic(false); setConsent(false);
+    setAudioEnabled(false); setCameraBusy(false);
+    const matchId = snapshot.matchId;
+    void Promise.resolve(oldMedia?.disconnect()).then(() => {
+      if (hadCamera && alive.current && currentMatch.current?.matchId === matchId) void enableCamera();
+    });
+  }, [snapshot?.matchId]);
 
   const clean = () => {
     localInput.current = null;
@@ -208,6 +228,7 @@ function OnlineGame() {
         <fieldset className="online-game-picker" disabled={busy || !compatible}>
           <legend><span>01</span> Pick your game</legend>
           <p className="online-fine">Go head to head, or make a great mess together.</p>
+          {features.gauntlet && <label className="online-game-option online-gauntlet-option"><input type="radio" name="online-game" value="gauntlet" checked={gameId === 'gauntlet'} onChange={() => setGameId('gauntlet')} /><span className="online-option-copy"><small>THE MAIN EVENT · 3 LIVES EACH</small><strong>⚔ The Gauntlet</strong><small>Random games. One champion.</small></span><span className="online-option-check">{gameId === 'gauntlet' ? '✓' : '↗'}</span></label>}
           {features.games.length ? <div className="online-game-options">{features.games.map((g, i) => <label key={g.id} className="online-game-option">
             <input type="radio" name="online-game" value={g.id} checked={gameId === g.id} onChange={() => setGameId(g.id)} />
             <span className="online-option-number">{String(i + 1).padStart(2, '0')}</span><span className="online-option-copy"><strong><span aria-hidden="true">{g.icon}</span> {g.title}</strong><small>{g.coop ? 'Co-op' : 'Versus'} · {g.mode === 'hand' ? 'Hands' : 'Full body'}</small></span><span className="online-option-check" aria-hidden="true">{gameId === g.id ? '✓' : '↗'}</span>
@@ -230,6 +251,7 @@ function OnlineGame() {
       <section className="online-room-head"><div><p className="online-eyebrow">{snapshot.public ? 'PUBLIC ROOM' : `PRIVATE ROOM · ${snapshot.roomId}`} · {snapshot.game.coop ? 'CO-OP' : 'VERSUS'}</p><h1>{snapshot.phase === 'over' ? (snapshot.game.coop ? snapshot.result?.title : snapshot.winner === null ? 'A draw!' : `${snapshot.players[snapshot.winner].name} wins!`) : snapshot.phase === 'paused' ? 'Waiting for your friend to reconnect…' : snapshot.phase === 'aborted' ? 'The match ended early.' : snapshot.game.title}</h1></div>
         <div className="online-status">{snapshot.recording && <span className="online-recording">● Recording</span>}<span>{connection}</span>{!snapshot.public && <button onClick={() => void copyInvite()}>Copy invite</button>}</div>
       </section>
+      {snapshot.series && <section className="online-series" aria-label="Gauntlet standings"><div><p className="arcade-eyebrow">THE GAUNTLET / ROUND {snapshot.series.round}</p><h2>{snapshot.series.over ? `${snapshot.players[snapshot.series.lives[0] === 0 ? 1 : 0]?.name || 'Your friend'} takes the crown!` : 'Three lives. Make them count.'}</h2></div><div className="online-series-lives">{snapshot.players.map((p, i) => <span key={p.id}>{p.name}<strong aria-label={`${snapshot.series!.lives[i]} lives`}>{'●'.repeat(snapshot.series!.lives[i])}{'○'.repeat(3 - snapshot.series!.lives[i])}</strong></span>)}</div></section>}
       <GameStage snapshot={snapshot} guestId={guest?.id} localVideo={localVideo} remoteVideo={remoteVideo} localInput={localInput} renderStats={renderStats} />
       <section className="online-controls">
         {snapshot.phase === 'lobby' && <>
@@ -242,13 +264,13 @@ function OnlineGame() {
           {cameraReady && <p>{tracked ? '✓ Movement tracked. You’re ready.' : snapshot.game.mode === 'hand' ? 'Show your hands to the camera.' : 'Step into frame with your hands and hips visible.'}</p>}
           {snapshot.highlightsEnabled && <label className="online-consent"><input type="checkbox" checked={consent} disabled={me?.ready} onChange={e => setConsent(e.target.checked)} />Allow recording of my camera and enabled microphone for a highlight that either player can share. Highlight access expires after 30 days. See the <a href="./privacy/#retention" target="_blank" rel="noopener noreferrer">Privacy Policy</a> for storage and deletion.</label>}
           {!snapshot.mediaEnabled && <p className="online-fine">Live cameras are not connected on this server. You’ll see your friend’s tracked movements instead.</p>}
-          {cameraReady && <button className="online-primary" disabled={!tracked || !opponent} onClick={() => room.current?.send('ready', { ready: !me?.ready, recordingConsent: consent })}>{me?.ready ? 'Ready — click to cancel' : 'I’m ready'}</button>}
+          {cameraReady && <><button className="online-primary" onClick={() => room.current?.send('ready', { ready: !me?.ready, recordingConsent: consent })}>{me?.ready ? 'Cancel ready' : 'Get ready — then step into position'}</button><p role="status">{me?.ready ? 'You can step away from the controls now. Hold your position; when both players are in frame, the 3-second countdown starts.' : 'Choose your recording preference, then get ready. No need to hold a pose while pressing a button.'}</p><div className="online-position-status">{snapshot.players.map((p, i) => <span key={p.id} data-ready={p.ready && snapshot.positioned?.[i]}>{p.name}: {!p.ready ? 'not ready yet' : snapshot.positioned?.[i] ? 'in position ✓' : snapshot.game.mode === 'hand' ? `show ${snapshot.game.hands === 2 ? 'both hands' : 'one hand'} in frame` : 'show shoulders, hips and hands'}</span>)}</div></>}
         </>}
         {snapshot.phase === 'preparing' && <p>Preparing the match{consent ? ' and recordings' : ''}…</p>}
-        {snapshot.phase === 'countdown' && <strong className="online-countdown">{Math.max(1, Math.ceil((snapshot.startedAt - snapshot.serverNow) / 1000))}</strong>}
+        {snapshot.phase === 'countdown' && <button onClick={() => room.current?.send('ready', { ready: false, recordingConsent: consent })}>Cancel countdown</button>}
         {snapshot.phase === 'playing' && <p>{snapshot.game.blurb}</p>}
         {cameraReady && snapshot.mediaEnabled && <div className="online-media-buttons"><button onClick={() => void toggleMic()}>{mic ? 'Mute microphone' : 'Enable microphone'}</button>{!audioEnabled && <button onClick={() => void media.current?.startAudio().then(() => setAudioEnabled(true))}>Enable sound</button>}</div>}
-        {snapshot.phase === 'over' && <><ul className="online-results">{snapshot.result?.rows.map((row, i) => <li key={i}><strong>{snapshot.game.coop ? row.tag : snapshot.players[i]?.name}: {row.value}</strong><span>{row.text}</span></li>)}</ul>{snapshot.highlightsEnabled && me?.recordingConsent && opponent?.recordingConsent && <Clip id={snapshot.matchId} token={guest!.token} />}<button onClick={leave}>Choose another game</button></>}
+        {snapshot.phase === 'over' && <section className="online-lounge"><p className="arcade-eyebrow">THE AFTERPARTY / STILL IN THE SAME ROOM</p><h2>Catch your breath. Go again?</h2><p>Your cameras stay connected here. Take your time — the next round waits for both of you.</p><ul className="online-results">{snapshot.result?.rows.map((row, i) => <li key={i}><strong>{snapshot.game.coop ? row.tag : snapshot.players[i]?.name}: {row.value}</strong><span>{row.text}</span></li>)}</ul>{snapshot.series && <ol className="online-series-history">{snapshot.series.history.map((r, i) => <li key={i}>Round {i + 1} · {r.game} · {snapshot.players[r.winner]?.name} wins{r.reason !== 'score' ? ` (${r.reason})` : ''}</li>)}</ol>}{(!snapshot.series || snapshot.series.over) && <label>Next up{snapshot.players[0]?.id === guest?.id ? <select value={snapshot.nextChoice} disabled={snapshot.saving} onChange={e => room.current?.send('next-choice', e.target.value)}><option value="gauntlet">The Gauntlet · 3 lives</option>{features.games.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}</select> : <span>{snapshot.nextChoice === 'gauntlet' ? 'The Gauntlet' : features.games.find(g => g.id === snapshot.nextChoice)?.title} · Your host picks the game.</span>}</label>}<button className="online-primary" disabled={snapshot.saving || !opponent?.connected || snapshot.nextVotes?.includes(guest!.id)} onClick={() => room.current?.send('next')}>{snapshot.saving ? 'Finishing this round…' : snapshot.nextVotes?.includes(guest!.id) ? 'Waiting for your friend…' : snapshot.series && !snapshot.series.over ? 'Continue the Gauntlet →' : 'Back to the lobby together →'}</button>{!opponent?.connected && <p>Your friend has left. Leave this room to find a new partner.</p>}{snapshot.highlightsEnabled && me?.recordingConsent && opponent?.recordingConsent && <Clip key={snapshot.matchId} id={snapshot.matchId} token={guest!.token} />}<button className="online-link" onClick={leave}>Leave room</button></section>}
         {snapshot.phase === 'aborted' && <p>A player left or the connection timed out. No highlight will be created. Leave this room to play again.</p>}
         {snapshot.public && opponent && <button className="online-link" onClick={() => setReport(!report)}>Report & block player</button>}
         {report && <form onSubmit={e => { e.preventDefault(); void api(`/rooms/${snapshot.roomId}/report`, guest!.token, { reason }).then(() => { leave(); setError('Report saved. This guest player is blocked from your future matches.'); }).catch(e => setError(e.message)); }}><label>What happened?<textarea minLength={3} maxLength={500} required value={reason} onChange={e => setReason(e.target.value)} /></label><button type="submit">Send report and leave</button></form>}

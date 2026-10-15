@@ -10,7 +10,7 @@ import { EXTRA_POSES, mirrorPose } from "./poseLibrary.js";
    The per-pose window is 1 / START_SPEED seconds: the time the wall
    takes to reach you. That is the "time limit" a player actually feels.
    ────────────────────────────────────────────────────────────────── */
-const MATCH_TIME = 40;
+const MATCH_TIME = 60;
 const START_SPEED = 0.141;  // 7.1s per pose — was 0.11 (9.1s), so -2s
 const SPEED_STEP = 0.018;   // added per successful pose
 const HOLD_TIME = 0.35;     // seconds a pose must be held to count

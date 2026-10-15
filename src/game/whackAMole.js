@@ -10,7 +10,7 @@ import { BASE_SPAWN_INTERVAL } from "./balance.js";
    ─────────────────────────────────────────────────────────────────── */
 const COLS = 4;                   // 2 columns per player
 const ROWS = 3;
-const MATCH_TIME = 30;
+const MATCH_TIME = 60;
 const UP_MS = 850;                // was 1000 ramping to 520  (-15% visible)
 const MAX_ACTIVE_PER_SIDE = 2;    // per side, so neither player is starved
 const GOLD_CHANCE = 0.16;

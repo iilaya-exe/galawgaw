@@ -1,4 +1,5 @@
 import { createTracker, type Tracker } from "@/tracking/tracker";
+import { startLocalHighlight, drawLocalHighlight, finishLocalHighlight, pauseLocalHighlight, cancelLocalCapture, useLocalHighlight } from './localHighlights';
 import { toast } from "sonner";
 import { startPreviews, stopPreviews, measurePreviews } from "@/game/previews.js";
 import { sfx, unlock, isMuted, setMuted } from "@/game/audio.js";
@@ -454,6 +455,7 @@ function countdown(token: number) {
         setTimeout(() => {
           if (token !== sequenceToken) return resolve();
           setPhase("playing");
+          startLocalHighlight(game.title);
           lastFrameTime = performance.now();
           resolve();
         }, 620);
@@ -520,6 +522,8 @@ function tick(now: number) {
     currentGame.update(dt);
     currentGame.draw(ctx);
     updateHud();
+    if (video && canvas && !perfLow) drawLocalHighlight(video, canvas, now, [get().hud.p1.value, get().hud.p2.value]);
+    else if (perfLow && useLocalHighlight.getState().recording) { cancelLocalCapture(); useLocalHighlight.setState({ message: 'Highlight recording stopped to keep the game responsive.' }); }
     if (currentGame.isOver()) finish();
   } else if (phase === "countdown") {
     currentGame.draw(ctx);   // players can see the board while they get set
@@ -679,6 +683,7 @@ function applySeriesResult(summary: any) {
 
 function finish() {
   stopLoop();
+  finishLocalHighlight();
   const game = currentGame!;
   const summary = game.getSummary();
   if (playMode === "gauntlet") applySeriesResult(summary);
@@ -773,6 +778,7 @@ export function cancelAutoNext() {
 }
 
 export function returnToMenu() {
+  cancelLocalCapture();
   sequenceToken++;
   finishWarmup();          // release any awaiting launch
   stopLoop();
@@ -794,12 +800,14 @@ export function returnToMenu() {
 export function pause() {
   if (get().phase !== "playing") return;
   stopLoop();
+  pauseLocalHighlight(true);
   setPhase("paused");
 }
 
 export function resume() {
   if (get().phase !== "paused") return;
   setPhase("playing");
+  pauseLocalHighlight(false);
   startLoop();
 }
 
