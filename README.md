@@ -1,8 +1,8 @@
 # GALAWGAW
 
-Webcam party games for two players. Ten same-screen games controlled with
+Webcam party games for two players. Twelve same-screen games controlled with
 your hands and body, tracked on-device with MediaPipe. Same-screen play keeps
-camera frames in the browser. Online play supports all ten games and connects to
+camera frames in the browser. Online play supports all twelve games and connects to
 the separate Galawgaw_Backend server for movement, rooms and scoring, with
 optional live camera sharing and opt-in cloud highlights.
 
@@ -41,6 +41,8 @@ deybsuanwashere
 | 8 | Tug of War | Versus | Hands |
 | 9 | Vault Sync | Co-op | Full body |
 | 10 | Echo | Versus | Full body |
+| 11 | Spot Kick | Versus | Full body |
+| 12 | Super Save | Versus | Hands |
 
 Play a single game, **Shuffle** a random one, or run the **Gauntlet**: random
 versus games back to back, three lives each, last player standing wins.

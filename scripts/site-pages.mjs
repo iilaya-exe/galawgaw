@@ -4,12 +4,12 @@ const contact = `<a href="mailto:${email}">${email}</a>`;
 export const pages = [
   {
     slug: 'about', label: 'About', title: 'A little room for ridiculous.', eyebrow: 'About GALAWGAW',
-    description: 'Meet GALAWGAW: ten browser party games that turn your webcam, hands, and body into the controls.',
+    description: 'Meet GALAWGAW: twelve browser party games that turn your webcam, hands, and body into the controls.',
     intro: 'GALAWGAW is a browser arcade for two people, a webcam, and the kind of competition that gets you out of your chair.',
     body: `
       <section><h2>Your next controller is you.</h2>
         <p>Point at bubbles. Copy a pose. Dodge a beam. GALAWGAW uses your camera to follow your hands and body, turning everyday movements into game controls. You can play directly in your browser without installing a game app or buying a special controller.</p>
-        <p>The arcade brings together ten short games. Some reward quick reactions; others ask you to remember a sequence, hold still, or coordinate with a teammate. Choose a game from the menu, try a random pick with Shuffle, or play the Gauntlet to see who lasts longest.</p>
+        <p>The arcade brings together twelve short games. Some reward quick reactions; others ask you to remember a sequence, hold still, or coordinate with a teammate. Choose a game from the menu, try a random pick with Shuffle, or play the Gauntlet to see who lasts longest.</p>
       </section>
       <section><h2>One screen or different rooms.</h2>
         <div class="cards"><article><h3>Side by side</h3><p>Share a laptop or desktop camera. Stand where both players fit in the frame, follow the warm-up, and compete or work together. In this mode, camera video is processed on your device.</p></article>
@@ -21,7 +21,7 @@ export const pages = [
   },
   {
     slug: 'help', label: 'How to play & FAQ', title: 'Less setup. More moving.', eyebrow: 'How to play & FAQ',
-    description: 'Learn all ten GALAWGAW games, set up your webcam, invite friends, and troubleshoot tracking or highlights.',
+    description: 'Learn all twelve GALAWGAW games, set up your webcam, invite friends, and troubleshoot tracking or highlights.',
     intro: 'Start with a clear camera view and enough room to move. Here is how to get into a match and what to do when something feels off.',
     body: `
       <section><h2>Get your space ready.</h2><ol>

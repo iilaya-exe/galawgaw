@@ -6,11 +6,11 @@
     <meta name="theme-color" content="#0b0b14" />
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6484144302656332" crossorigin="anonymous"></script>
     <title>GALAWGAW — Webcam Party Games</title>
-    <meta name="description" content="Ten two-player webcam party games controlled with your hands and body. Play together on one screen or online, with optional shared video and match highlights." />
+    <meta name="description" content="Twelve two-player webcam party games controlled with your hands and body. Play together on one screen or online, with optional shared video and match highlights." />
     <link rel="canonical" href="https://galawgaw.com/" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="GALAWGAW — Webcam Party Games" />
-    <meta property="og:description" content="Ten two-player party games you control with your hands and body. Nothing to install." />
+    <meta property="og:description" content="Twelve two-player party games you control with your hands and body. Nothing to install." />
     <meta name="twitter:card" content="summary" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=2" />
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png?v=2" />
@@ -44,6 +44,11 @@
           if (root && root.childElementCount > 0) return;
           var target = event.target;
           if (target && (target.tagName === "SCRIPT" || target.tagName === "LINK")) {
+            // Only this site's own files are required. Third-party scripts
+            // (ads, analytics) are routinely blocked by ad blockers and must
+            // never take the whole page down with them.
+            var url = target.src || target.href || "";
+            try { if (url && new URL(url, location.href).origin !== location.origin) return; } catch (e) { return; }
             // The unbuilt source was deployed: browsers cannot run .tsx.
             if (/\.tsx?$/.test(target.src || "")) {
               panic("This site has not been built", "The server is hosting the source code instead of the built site. Deploy the <b>dist/</b> folder from <b>npm run build</b> — on GitHub Pages, set Settings → Pages → Source to <b>GitHub Actions</b>.");

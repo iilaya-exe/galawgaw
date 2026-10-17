@@ -4,6 +4,7 @@
 // All four share one rAF loop that only runs while the menu is visible.
 
 import { C } from "./theme.js";
+import { drawBall, drawGoal, drawKeeper, drawGlove } from "./footballKit.js";
 
 const mounted = [];
 
@@ -84,6 +85,55 @@ export function stopPreviews() {
 /* ── Per-game renderers ─────────────────────────────────────────── */
 
 const RENDERERS = {
+  // A penalty: the ball flies to alternating corners; the keeper guesses,
+  // and gets one of every two.
+  spotkick(ctx, w, h, t) {
+    const gw = Math.min(w * 0.3, h * 0.62);
+    const gh = gw * 0.55;
+    const top = h * 0.12;
+    const cx = w / 2;
+    const cycle = t / 1.8;
+    const n = Math.floor(cycle);
+    const p = cycle - n;
+    const dir = n % 2 === 0 ? 1 : -1;
+    const keeperGuess = n % 3 === 0 ? dir : -dir;
+    const fly = Math.min(1, Math.max(0, (p - 0.25) / 0.3));
+    const dive = Math.min(1, Math.max(0, (p - 0.32) / 0.25));
+    drawGoal(ctx, cx, top, gw, gh, { ripple: keeperGuess !== dir && fly >= 1 ? Math.max(0, 1 - (p - 0.55) * 3) : 0 });
+    drawKeeper(ctx, cx + keeperGuess * dive * gw * 0.55, top + gh, gh * 0.8, keeperGuess * dive);
+    const tx = cx + dir * gw * 0.72;
+    const ty = top + gh * 0.4;
+    const bx = cx + (tx - cx) * fly;
+    const by = h * 0.86 + (ty - h * 0.86) * fly - Math.sin(fly * Math.PI) * gh * 0.3;
+    drawBall(ctx, bx, by, Math.max(3, h * 0.07 * (1 - fly * 0.45)), fly * 8);
+  },
+
+  // The ball comes at you, growing; a glove meets it on alternate shots.
+  supersave(ctx, w, h, t) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.8)";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(w * 0.06, h); ctx.lineTo(w * 0.06, h * 0.08); ctx.lineTo(w * 0.94, h * 0.08); ctx.lineTo(w * 0.94, h);
+    ctx.stroke();
+    ctx.restore();
+    const cycle = t / 1.6;
+    const n = Math.floor(cycle);
+    const p = cycle - n;
+    const dir = n % 2 === 0 ? 1 : -1;
+    const k = Math.min(1, p / 0.7);
+    const tx = w / 2 + dir * w * 0.26;
+    const ty = h * 0.55;
+    const bx = w / 2 + (tx - w / 2) * k;
+    const by = h * 0.3 + (ty - h * 0.3) * k - Math.sin(k * Math.PI) * h * 0.08;
+    const saved = n % 2 === 0;
+    const gx = saved ? w / 2 + (tx - w / 2) * Math.min(1, p / 0.6) : w / 2 - dir * w * 0.1;
+    if (p < 0.85) drawBall(ctx, bx, by, 3 + k * k * h * 0.13, k * 9);
+    drawGlove(ctx, gx, ty + h * 0.04, h * 0.1, C.p1, -Math.PI / 2 + dir * 0.4, saved && k > 0.8, dir < 0);
+    drawGlove(ctx, w / 2 - dir * w * 0.22, h * 0.72, h * 0.1, C.p1, -Math.PI / 2, false, dir > 0);
+  },
+
   // Bubbles drift up; one bomb among them.
   signalpop(ctx, w, h, t) {
     const items = [
