@@ -38,6 +38,7 @@ export type GameInstance = Record<string, any> & {
   hint?: string;
   mode: "hand" | "pose";
   coop?: boolean;
+  solo?: boolean;
   numHands?: number;
   numPoses?: number;
   tutorial?: string[];
@@ -63,6 +64,7 @@ export const META: GameMeta[] = GAMES.map((factory, index) => {
     hint: game.hint,
     mode: game.mode,
     coop: !!game.coop,
+    solo: !!game.solo,
   };
 });
 

@@ -2,6 +2,8 @@
 // camera access, or JavaScript. npm's predev/prebuild hooks keep them up to date.
 import { mkdir, writeFile, readFile, copyFile } from 'node:fs/promises';
 import { ONLINE_GAMES } from '../src/game/onlineProtocol.js';
+import { createSpotKick } from '../src/game/spotKick.js';
+import { createSuperSave } from '../src/game/superSave.js';
 import { pages } from './site-pages.mjs';
 
 const escape = (value) => String(value).replace(/[&<>"']/g, char => ({
@@ -19,14 +21,21 @@ await Promise.all([
   copyFile(new URL('../node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2', import.meta.url), new URL('../public/fonts/geist.woff2', import.meta.url)),
   copyFile(new URL('../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2', import.meta.url), new URL('../public/fonts/space-grotesk.woff2', import.meta.url)),
 ]);
-const gameGuides = ONLINE_GAMES.map(game => `
+// Online play covers the two-player games; solo games are same-screen only,
+// so their guides are added here.
+const SOLO_GAMES = [createSpotKick, createSuperSave].map(factory => {
+  const { id, title, blurb, mode, tutorial } = factory();
+  return { id, title, blurb, mode, tutorial, coop: false, solo: true };
+});
+const GUIDE_GAMES = [...ONLINE_GAMES, ...SOLO_GAMES];
+const gameGuides = GUIDE_GAMES.map(game => `
   <section id="${escape(game.id)}" class="game-guide">
-    <p class="eyebrow">${game.coop ? 'Work together' : 'Head to head'} · ${game.mode === 'hand' ? 'Hand tracking' : 'Body tracking'}</p>
+    <p class="eyebrow">${game.solo ? 'On your own' : game.coop ? 'Work together' : 'Head to head'} · ${game.mode === 'hand' ? 'Hand tracking' : 'Body tracking'}</p>
     <h3>${escape(game.title)}</h3>
     <p>${escape(game.blurb)}</p>
     <ol>${game.tutorial.map(step => `<li>${escape(step)}</li>`).join('')}</ol>
   </section>`).join('');
-const gameContents = `<ul class="game-index">${ONLINE_GAMES.map(game => `<li><a href="#${escape(game.id)}">${escape(game.title)}</a></li>`).join('')}</ul>`;
+const gameContents = `<ul class="game-index">${GUIDE_GAMES.map(game => `<li><a href="#${escape(game.id)}">${escape(game.title)}</a></li>`).join('')}</ul>`;
 
 for (const page of pages) {
   const links = pages.map(item => `<a href="../${item.slug}/"${item.slug === page.slug ? ' aria-current="page"' : ''}>${escape(item.label)}</a>`).join('\n');
@@ -71,4 +80,4 @@ await writeFile(new URL('../public/sitemap.xml', import.meta.url), `<?xml versio
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(url => `  <url><loc>${url}</loc></url>`).join('\n')}
 </urlset>\n`);
-console.log(`Generated ${pages.length} information pages, ${ONLINE_GAMES.length} game guides, and sitemap.xml.`);
+console.log(`Generated ${pages.length} information pages, ${GUIDE_GAMES.length} game guides, and sitemap.xml.`);

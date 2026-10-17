@@ -18,8 +18,11 @@ import {
    ═══════════════════════════════════════════════════════════════════ */
 
 // The gauntlet is a last-player-standing format, so it can only draw on
-// versus channels — a co-op round has no loser to take a life from.
-const VERSUS_GAMES = GAMES.filter((_, index) => !META[index].coop);
+// versus channels — a co-op or solo round has no loser to take a life from.
+const VERSUS_GAMES = GAMES.filter((_, index) => !META[index].coop && !META[index].solo);
+// Shuffle deals a game for the two people in front of the camera, so solo
+// games are left out; they are picked from the menu.
+const SHUFFLE_GAMES = GAMES.filter((_, index) => !META[index].solo);
 
 const set = useArcade.setState;
 const get = useArcade.getState;
@@ -203,7 +206,7 @@ export function startSingle(index: number) {
 export function startShuffle() {
   playMode = "shuffle";
   resetSeries();
-  void launch(pickRandom(GAMES, selectedFactory));
+  void launch(pickRandom(SHUFFLE_GAMES, selectedFactory));
 }
 
 export function startGauntlet() {
@@ -249,12 +252,14 @@ function warmup(token: number) {
 
     const game = currentGame!;
     const drill = game.getDrill?.();
-    const coop = !!game.coop;
+    const solo = !!game.solo;
+    const coop = !!game.coop || solo;    // one shared slot either way
     set({
       warm: {
         label: drill?.label || "TRY IT OUT",
         tip: "Try it out",
         coop,
+        solo,
         slots: [
           { state: "waiting", text: `0/${drill?.target ?? 1}` },
           { state: "waiting", text: `0/${drill?.target ?? 1}` },
@@ -348,7 +353,7 @@ export function finishWarmup() {
 
 // A light frame around each half so players know which side is theirs.
 function drawWarmupGuides(ctx: CanvasRenderingContext2D) {
-  if (currentGame!.coop) return;
+  if (currentGame!.coop || currentGame!.solo) return;
   const half = view.width / 2;
   const inset = 12;
 
@@ -703,6 +708,7 @@ function finish() {
 
   const kicker = finale ? "Gauntlet complete"
     : playMode === "gauntlet" ? `Round ${s.round} result`
+    : summary.solo ? "Run complete"
     : summary.coop ? "Dive complete" : "Match complete";
 
   const how = lastDecision?.how;
@@ -740,7 +746,8 @@ function finish() {
   set({ result: { kicker, title, color, rows, finale, statusHead, replayLabel, record, coop: !!summary.coop } });
   setPhase("over");
   startAutoNext();
-  if (summary.coop) (summary.success ? sfx.win() : sfx.fail());
+  if (summary.solo) (record !== null ? sfx.win() : summary.success ? sfx.draw() : sfx.fail());
+  else if (summary.coop) (summary.success ? sfx.win() : sfx.fail());
   else if (playMode !== "gauntlet" && summary.winner === null) sfx.draw();
   else sfx.win();
 }

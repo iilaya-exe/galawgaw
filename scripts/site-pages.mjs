@@ -9,7 +9,7 @@ export const pages = [
     body: `
       <section><h2>Your next controller is you.</h2>
         <p>Point at bubbles. Copy a pose. Dodge a beam. GALAWGAW uses your camera to follow your hands and body, turning everyday movements into game controls. You can play directly in your browser without installing a game app or buying a special controller.</p>
-        <p>The arcade brings together twelve short games. Some reward quick reactions; others ask you to remember a sequence, hold still, or coordinate with a teammate. Choose a game from the menu, try a random pick with Shuffle, or play the Gauntlet to see who lasts longest.</p>
+        <p>The arcade brings together twelve short games. Some reward quick reactions; others ask you to remember a sequence, hold still, or coordinate with a teammate, and two solo football games let you take penalties or keep goal on your own. Choose a game from the menu, try a random pick with Shuffle, or play the Gauntlet to see who lasts longest.</p>
       </section>
       <section><h2>One screen or different rooms.</h2>
         <div class="cards"><article><h3>Side by side</h3><p>Share a laptop or desktop camera. Stand where both players fit in the frame, follow the warm-up, and compete or work together. In this mode, camera video is processed on your device.</p></article>

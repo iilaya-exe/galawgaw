@@ -21,6 +21,7 @@ export interface GameMeta {
   hint?: string;
   mode: "hand" | "pose";
   coop: boolean;
+  solo: boolean;
 }
 
 export interface HudPod {
@@ -85,6 +86,7 @@ export interface ArcadeState {
     label: string;
     tip: string;
     coop: boolean;
+    solo: boolean;
     slots: [{ state: SlotState; text: string }, { state: SlotState; text: string }];
   };
   count: { value: string; hint: string };
@@ -119,6 +121,7 @@ export const useArcade = create<ArcadeState>()(() => ({
     label: "TRY IT OUT",
     tip: "Try it out",
     coop: false,
+    solo: false,
     slots: [
       { state: "waiting", text: "0/2" },
       { state: "waiting", text: "0/2" },

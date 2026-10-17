@@ -47,7 +47,7 @@ export function TopBar() {
                 {game.title}
               </span>
               <span className="truncate text-xs text-white/60">
-                {playMode === "gauntlet" ? `Gauntlet · Round ${Math.max(1, round)}` : game.coop ? "Co-op" : "Versus"}
+                {playMode === "gauntlet" ? `Gauntlet · Round ${Math.max(1, round)}` : game.solo ? "Solo" : game.coop ? "Co-op" : "Versus"}
               </span>
             </div>
           )}

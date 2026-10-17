@@ -270,6 +270,21 @@ function roundRect(ctx, x, y, w, h, r) {
   else ctx.rect(x, y, w, h);
 }
 
+/* One hand drives both gloves: a pair held side by side, the way a keeper
+   gathers a ball. `angle` points from the wrist towards the fingers; the
+   gloves sit either side of that line, splayed a little, thumbs inward.
+   The artwork has its thumb on the left, so the left glove is mirrored.
+   `r` is the glove size passed to drawGlove. */
+export function glovePair(x, y, angle, r) {
+  const px = Math.cos(angle + Math.PI / 2);   // perpendicular to the fingers
+  const py = Math.sin(angle + Math.PI / 2);
+  const gap = r * 1.05;
+  return [
+    { x: x - px * gap, y: y - py * gap, angle: angle - 0.22, flip: true },
+    { x: x + px * gap, y: y + py * gap, angle: angle + 0.22, flip: false },
+  ];
+}
+
 // Big centred result word ("GOAL!", "SAVED!") that pops in and fades.
 export function drawCallout(ctx, x, y, text, color, k, size = 44) {
   const pop = k < 0.15 ? 0.6 + (k / 0.15) * 0.5 : k < 0.3 ? 1.1 - ((k - 0.15) / 0.15) * 0.1 : 1;

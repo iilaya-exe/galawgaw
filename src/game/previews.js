@@ -4,7 +4,7 @@
 // All four share one rAF loop that only runs while the menu is visible.
 
 import { C } from "./theme.js";
-import { drawBall, drawGoal, drawKeeper, drawGlove } from "./footballKit.js";
+import { drawBall, drawGoal, drawKeeper, drawGlove, glovePair } from "./footballKit.js";
 
 const mounted = [];
 
@@ -108,7 +108,7 @@ const RENDERERS = {
     drawBall(ctx, bx, by, Math.max(3, h * 0.07 * (1 - fly * 0.45)), fly * 8);
   },
 
-  // The ball comes at you, growing; a glove meets it on alternate shots.
+  // The ball comes at you, growing; the pair of gloves meets it on alternate shots.
   supersave(ctx, w, h, t) {
     ctx.save();
     ctx.strokeStyle = "rgba(255,255,255,0.8)";
@@ -128,10 +128,13 @@ const RENDERERS = {
     const bx = w / 2 + (tx - w / 2) * k;
     const by = h * 0.3 + (ty - h * 0.3) * k - Math.sin(k * Math.PI) * h * 0.08;
     const saved = n % 2 === 0;
-    const gx = saved ? w / 2 + (tx - w / 2) * Math.min(1, p / 0.6) : w / 2 - dir * w * 0.1;
+    const reach = Math.min(1, p / 0.6);
+    const gx = saved ? w / 2 + (tx - w / 2) * reach : w / 2 - dir * w * 0.12 * reach;
+    const gy = saved ? h * 0.62 + (ty + h * 0.02 - h * 0.62) * reach : h * 0.62;
     if (p < 0.85) drawBall(ctx, bx, by, 3 + k * k * h * 0.13, k * 9);
-    drawGlove(ctx, gx, ty + h * 0.04, h * 0.1, C.p1, -Math.PI / 2 + dir * 0.4, saved && k > 0.8, dir < 0);
-    drawGlove(ctx, w / 2 - dir * w * 0.22, h * 0.72, h * 0.1, C.p1, -Math.PI / 2, false, dir > 0);
+    for (const glove of glovePair(gx, gy, -Math.PI / 2 + (saved ? dir * 0.25 * reach : 0), h * 0.085)) {
+      drawGlove(ctx, glove.x, glove.y, h * 0.085, C.p1, glove.angle, saved && k > 0.8, glove.flip);
+    }
   },
 
   // Bubbles drift up; one bomb among them.

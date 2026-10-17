@@ -235,7 +235,7 @@ function WarmupBar() {
           </div>
         </div>
         <div className="flex shrink-0 gap-1.5">
-          <PlayerChip name={warm.coop ? "Crew" : "P1"} color="var(--p1)" slot={warm.slots[0]} />
+          <PlayerChip name={warm.solo ? "You" : warm.coop ? "Crew" : "P1"} color="var(--p1)" slot={warm.slots[0]} />
           {!warm.coop && <PlayerChip name="P2" color="var(--p2)" slot={warm.slots[1]} />}
         </div>
         <Separator orientation="vertical" className="!h-8 bg-white/10" />

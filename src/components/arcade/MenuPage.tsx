@@ -9,17 +9,17 @@ import { Lives } from './Lives';
 import { ArcadeHeader, ArcadeFooter, PartyPose } from './ArcadeShell';
 import { LocalHighlight, LocalHighlightSetting } from './LocalHighlight';
 
-type Filter = 'all' | 'versus' | 'coop' | 'hand' | 'pose';
+type Filter = 'all' | 'versus' | 'coop' | 'solo' | 'hand' | 'pose';
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All games' }, { value: 'versus', label: 'Versus' },
-  { value: 'coop', label: 'Co-op' }, { value: 'hand', label: 'Hands' }, { value: 'pose', label: 'Full body' },
+  { value: 'coop', label: 'Co-op' }, { value: 'solo', label: 'Solo' }, { value: 'hand', label: 'Hands' }, { value: 'pose', label: 'Full body' },
 ];
 
 export function MenuPage({ hidden }: { hidden: boolean }) {
   const records = useArcade(s => s.records);
   const muted = useArcade(s => s.muted);
   const [filter, setFilter] = useState<Filter>('all');
-  const games = useMemo(() => META.filter(meta => filter === 'versus' ? !meta.coop : filter === 'coop' ? meta.coop : filter === 'hand' || filter === 'pose' ? meta.mode === filter : true), [filter]);
+  const games = useMemo(() => META.filter(meta => filter === 'versus' ? !meta.coop && !meta.solo : filter === 'coop' ? meta.coop : filter === 'solo' ? meta.solo : filter === 'hand' || filter === 'pose' ? meta.mode === filter : true), [filter]);
   return <div inert={hidden} aria-hidden={hidden} className="arcade-menu">
     <ArcadeHeader action={<>
       <Button variant="ghost" size="icon-sm" aria-label={muted ? 'Unmute sound' : 'Mute sound'} aria-pressed={muted} onClick={toggleMute}>{muted ? <VolumeX /> : <Volume2 />}</Button>

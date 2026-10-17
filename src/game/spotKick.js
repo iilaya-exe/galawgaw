@@ -1,27 +1,27 @@
 import { toCanvasPoint, createFx, createShake, clamp, lerp } from "./utils.js";
 import { C } from "./theme.js";
 import { sfx } from "./audio.js";
-import { IDX, createPoseTracker, drawSkeleton } from "./poseKit.js";
+import { IDX, isUsable, poseCenter, drawSkeleton } from "./poseKit.js";
 import { KEEPER, drawBall, drawGoal, drawKeeper, drawCallout, drawHint } from "./footballKit.js";
 
 /* ═══════════════════════════════════════════════════════════════════
-   SPOT KICK — you are the striker.
+   SPOT KICK — solo. You are the striker.
 
-   Each player takes penalties at their own goal against a computer
-   keeper. Step left or right to move the aim along the goal mouth, then
-   lift a knee (or swing a foot) to shoot: a sharper kick flies faster
-   and higher. Corners beat the keeper more often; past the post is wide.
-   Five penalties each, then sudden death if level.
+   One player, one goal, the whole screen. Step left or right to move
+   the aim along the goal mouth, then lift a knee (or swing a foot) to
+   shoot: a sharper kick flies faster and higher. Corners beat the keeper
+   more often; past the post is wide. Keep scoring — three misses (saved
+   or wide) and the run is over, and the keeper reads you better with
+   every penalty.
    ═══════════════════════════════════════════════════════════════════ */
 
-const SHOTS = 5;                // regulation penalties per player
-const SUDDEN_DEATH_MAX = 3;     // extra rounds before it is called a draw
+const LIVES = 3;                // misses allowed before the run ends
 const SHOT_CLOCK = 8;           // seconds before the kick is taken for you
 const RESULT_TIME = 1.5;        // seconds the GOAL / SAVED callout holds
 const KICK_ON = 1;              // lift level that fires a kick
 const KICK_REARM = 0.45;        // lift must fall below this before the next one
 const MIN_VISIBILITY = 0.5;     // knees and ankles below this are not trusted
-const AIM_GAIN = 2.6;           // lane fraction → goal units (1 = the post)
+const AIM_GAIN = 3;             // screen fraction → goal units (1 = the post)
 const AIM_LIMIT = 1.18;         // stepping far enough can put it wide
 const LK = 25, RK = 26, LA = 27, RA = 28;
 
@@ -30,25 +30,23 @@ export function createSpotKick() {
     id: "spotkick",
     title: "Spot Kick",
     icon: "⚽",
-    blurb: "You're the striker. Step to aim, lift your knee to shoot, beat the keeper.",
-    players: "2P VS",
-    hint: "Both players step back — full body in frame, knees too, one each side",
+    blurb: "Solo. You're the striker: step to aim, lift your knee to shoot. Three misses and you're out.",
+    players: "1P SOLO",
+    hint: "Step back — full body in frame, knees too",
     tutorial: [
-      "Step left or right — the target on your goal moves with you.",
+      "Step left or right — the target on the goal moves with you.",
       "Lift your knee or swing your foot to shoot. A sharper kick flies faster.",
-      "Corners beat the keeper. Past the post is wide. Five penalties each.",
+      "Corners beat the keeper. Past the post is wide. Three misses ends the run.",
     ],
     mode: "pose",
-    numPoses: 2,
+    numPoses: 1,
+    solo: true,                 // one player: no versus, not in the Gauntlet or online
 
     init({ view, practice = false }) {
       this.view = view;
       this.practice = practice;
       this.drill = [0, 0];
-      this.tracker = createPoseTracker();
-      this.players = [createStriker(), createStriker()];
-      this.target = practice ? 99 : SHOTS;
-      this.suddenDeath = 0;
+      this.player = createStriker();
       this.elapsed = 0;
       this.fx = createFx();
       this.shake = createShake();
@@ -60,38 +58,37 @@ export function createSpotKick() {
       this.view = view;
     },
 
+    // The most central usable body is the player.
     onResults(poses) {
-      const assigned = this.tracker.assign(poses);
-      this.players[0].landmarks = assigned[0];
-      this.players[1].landmarks = assigned[1];
+      const usable = poses.filter(isUsable);
+      usable.sort((a, b) => Math.abs(poseCenter(a) - 0.5) - Math.abs(poseCenter(b) - 0.5));
+      this.player.landmarks = usable[0] || null;
     },
 
-    // Goal and spot positions for one half, derived from the view each time.
-    lane(side) {
-      const half = this.view.width / 2;
-      const originX = side === 0 ? 0 : half;
+    // Goal and spot positions, derived from the view each time.
+    layout() {
+      const W = this.view.width;
       const H = this.view.height;
-      const cx = originX + half / 2;
-      const gw = Math.min(half * 0.36, H * 0.5);
+      const cx = W / 2;
+      const gw = Math.min(W * 0.34, H * 0.5);
       const gh = gw * 0.62;
       const top = H * 0.13;
-      return { originX, half, H, cx, gw, gh, top, spotY: H * 0.86 };
+      return { W, H, cx, gw, gh, top, spotY: H * 0.86 };
     },
 
-    /* Reads one player's body into an aim (goal units) and a kick lift.
-       Lift is measured in torso lengths so it means the same near or far:
+    /* Reads the body into an aim (goal units) and a kick lift. Lift is
+       measured in torso lengths so it means the same near or far:
        0 standing, 1 = knee raised well towards the hip or one foot swung
        half a torso above the other. */
-    readBody(side) {
-      const player = this.players[side];
-      const landmarks = player.landmarks;
+    readBody() {
+      const landmarks = this.player.landmarks;
       if (!landmarks) return null;
-      const L = this.lane(side);
+      const L = this.layout();
       const p = (index) => toCanvasPoint(landmarks[index], this.view);
       const shoulders = mid(p(IDX.ls), p(IDX.rs));
       const hips = mid(p(IDX.lh), p(IDX.rh));
       const torso = Math.max(20, Math.hypot(shoulders.x - hips.x, shoulders.y - hips.y));
-      const laneX = ((shoulders.x + hips.x) / 2 - L.originX) / L.half;
+      const screenX = (shoulders.x + hips.x) / 2 / L.W;
 
       const seen = (index) => landmarks[index] && (landmarks[index].visibility ?? 1) >= MIN_VISIBILITY;
       let lift = 0;
@@ -107,7 +104,7 @@ export function createSpotKick() {
           lift = Math.max(lift, ((p(otherAnkle).y - p(ankle).y) / torso) / 0.5);
         }
       }
-      return { aim: clamp((laneX - 0.5) * AIM_GAIN, -AIM_LIMIT, AIM_LIMIT), lift: Math.max(0, lift), legs };
+      return { aim: clamp((screenX - 0.5) * AIM_GAIN, -AIM_LIMIT, AIM_LIMIT), lift: Math.max(0, lift), legs };
     },
 
     update(dt) {
@@ -116,58 +113,53 @@ export function createSpotKick() {
       this.fx.update(dt);
       this.shake.update(dt);
 
-      for (const side of [0, 1]) {
-        const player = this.players[side];
-        const body = this.readBody(side);
-        player.tracked = !!body;
-        player.legs = !!body?.legs;
-        if (body) player.aim = lerp(player.aim, body.aim, Math.min(1, dt * 10));
-        const lift = body ? body.lift : 0;
-        const liftSpeed = dt > 0 ? (lift - player.lift) / dt : 0;
-        player.lift = lift;
-        player.keeperT += dt;
+      const player = this.player;
+      const body = this.readBody();
+      player.tracked = !!body;
+      player.legs = !!body?.legs;
+      if (body) player.aim = lerp(player.aim, body.aim, Math.min(1, dt * 10));
+      const lift = body ? body.lift : 0;
+      const liftSpeed = dt > 0 ? (lift - player.lift) / dt : 0;
+      player.lift = lift;
+      player.keeperT += dt;
 
-        if (player.phase === "aim") {
-          if (player.shots.length >= this.target) continue;
-          player.clock += dt;
-          if (lift < KICK_REARM) player.armed = true;
-          const kicked = player.armed && lift >= KICK_ON;
-          const timedOut = !this.practice && player.clock >= SHOT_CLOCK;
-          if (kicked || timedOut) this.kick(side, kicked ? clamp(liftSpeed / 6, 0.25, 1) : 0.15);
-        } else if (player.phase === "flight") {
-          player.t += dt;
-          const ball = player.ball;
-          if (player.t >= ball.dive) {
-            const k = clamp((player.t - ball.dive) / 0.3, 0, 1);
-            player.keeper.x = lerp(ball.keeperFrom, ball.keeperTo, easeOut(k));
-            player.keeper.dive = clamp((ball.keeperTo - ball.keeperFrom) / 0.9, -1, 1) * easeOut(k);
-          }
-          if (player.t >= ball.flight) this.resolve(side);
-        } else if (player.phase === "result") {
-          player.t += dt;
-          if (player.t >= RESULT_TIME) this.nextShot(side);
-        }
-
+      if (player.phase === "aim") {
+        player.clock += dt;
+        if (lift < KICK_REARM) player.armed = true;
+        const kicked = player.armed && lift >= KICK_ON;
+        const timedOut = !this.practice && player.clock >= SHOT_CLOCK;
+        if (kicked || timedOut) this.kick(kicked ? clamp(liftSpeed / 6, 0.25, 1) : 0.15);
         // An idle keeper shuffles and bounces on their line.
-        if (player.phase === "aim") {
-          player.keeper.x = Math.sin(player.keeperT * 1.7 + side) * 0.18;
-          player.keeper.dive = 0;
+        player.keeper.x = Math.sin(player.keeperT * 1.7) * 0.18;
+        player.keeper.dive = 0;
+      } else if (player.phase === "flight") {
+        player.t += dt;
+        const ball = player.ball;
+        if (player.t >= ball.dive) {
+          const k = clamp((player.t - ball.dive) / 0.3, 0, 1);
+          player.keeper.x = lerp(ball.keeperFrom, ball.keeperTo, easeOut(k));
+          player.keeper.dive = clamp((ball.keeperTo - ball.keeperFrom) / 0.9, -1, 1) * easeOut(k);
+        }
+        if (player.t >= ball.flight) this.resolve();
+      } else if (player.phase === "result") {
+        player.t += dt;
+        if (player.t >= RESULT_TIME) {
+          if (!this.practice && player.misses >= LIVES) this.over = true;
+          else this.nextShot();
         }
       }
-
-      this.checkFinished();
     },
 
-    kick(side, power) {
-      const player = this.players[side];
+    kick(power) {
+      const player = this.player;
       const aim = player.aim;
       // Shot height follows power: a soft kick stays low, a sharp one rises.
       const height = clamp(0.2 + power * 0.65 + (Math.random() - 0.5) * 0.12, 0.12, 0.92);
       const shotIndex = player.shots.length;
       /* The keeper either reads the kicker (dives at the shot, slightly
          off) or guesses: usually a side, sometimes stays home. Reading
-         improves through the shootout, so later penalties are harder. */
-      const read = this.practice ? 0 : Math.min(0.45, 0.2 + shotIndex * 0.05);
+         improves with every penalty, so a long run gets harder. */
+      const read = this.practice ? 0 : Math.min(0.6, 0.2 + shotIndex * 0.04);
       const roll = Math.random();
       const keeperTo = this.practice ? player.keeper.x
         : Math.random() < read ? clamp(aim + (Math.random() - 0.5) * 0.5, -0.8, 0.8)
@@ -183,14 +175,13 @@ export function createSpotKick() {
       player.phase = "flight";
       player.t = 0;
       player.armed = false;
-      player.kicks += 1;
       sfx.whack();
     },
 
-    resolve(side) {
-      const player = this.players[side];
+    resolve() {
+      const player = this.player;
       const ball = player.ball;
-      const L = this.lane(side);
+      const L = this.layout();
       let outcome;
       if (Math.abs(ball.aim) > 1) outcome = "wide";
       else {
@@ -204,25 +195,24 @@ export function createSpotKick() {
       player.ball.final = outcome;
       const x = L.cx + ball.aim * L.gw;
       const y = L.top + L.gh * (1 - ball.height);
-      const accent = side === 0 ? C.p1 : C.p2;
       if (outcome === "goal") {
         player.goals += 1;
-        player.cornerSum += Math.abs(ball.aim);
-        if (this.practice) this.drill[side] = 1;
-        this.fx.burst(x, y, accent, 16, 240);
+        player.streak += 1;
+        player.bestStreak = Math.max(player.bestStreak, player.streak);
+        if (this.practice) this.drill[0] = 1;
+        this.fx.burst(x, y, C.p1, 16, 240);
         this.shake.add(5);
         sfx.bonus();
-      } else if (outcome === "saved") {
-        this.fx.burst(x, y, KEEPER, 10, 160);
-        sfx.seal();
       } else {
-        sfx.fail();
+        player.streak = 0;
+        if (!this.practice) player.misses += 1;
+        if (outcome === "saved") { this.fx.burst(x, y, KEEPER, 10, 160); sfx.seal(); }
+        else sfx.fail();
       }
-      if (outcome !== "wide") player.onTarget += 1;
     },
 
-    nextShot(side) {
-      const player = this.players[side];
+    nextShot() {
+      const player = this.player;
       player.phase = "aim";
       player.t = 0;
       player.clock = 0;
@@ -230,42 +220,11 @@ export function createSpotKick() {
       player.keeper = { x: 0, dive: 0 };
     },
 
-    // Both players done with the current target? Then decide or extend.
-    checkFinished() {
-      if (this.practice) return;
-      const [a, b] = this.players;
-      const done = (p) => p.shots.length >= this.target && p.phase === "aim";
-      if (!done(a) || !done(b)) return;
-      if (a.goals === b.goals && this.suddenDeath < SUDDEN_DEATH_MAX) {
-        this.suddenDeath += 1;
-        this.target += 1;
-        return;
-      }
-      this.over = true;
-    },
-
     draw(ctx) {
       const shaking = this.shake.apply(ctx);
-      for (const side of [0, 1]) this.drawLane(ctx, side);
-      this.fx.draw(ctx);
-
-      const { view } = this;
-      ctx.save();
-      ctx.strokeStyle = "rgba(255,255,255,0.22)";
-      ctx.setLineDash([12, 10]);
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(view.width / 2, 0);
-      ctx.lineTo(view.width / 2, view.height);
-      ctx.stroke();
-      ctx.restore();
-      if (shaking) ctx.restore();
-    },
-
-    drawLane(ctx, side) {
-      const player = this.players[side];
-      const L = this.lane(side);
-      const accent = side === 0 ? C.p1 : C.p2;
+      const player = this.player;
+      const L = this.layout();
+      const accent = C.p1;
       const goalLine = L.top + L.gh;
 
       // Penalty area in perspective, faint, so the camera stays visible.
@@ -293,11 +252,10 @@ export function createSpotKick() {
       const ripple = goalFlash ? Math.max(0, 1 - player.t / 0.8) : 0;
       drawGoal(ctx, L.cx, L.top, L.gw, L.gh, { ripple, glow: goalFlash ? accent : null });
 
-      // Keeper
       drawKeeper(ctx, L.cx + player.keeper.x * L.gw, goalLine, L.gh * 0.82, player.keeper.dive);
 
       // Aim marker and trajectory hint while lining up.
-      if (player.phase === "aim" && player.shots.length < this.target) {
+      if (player.phase === "aim") {
         const ax = L.cx + clamp(player.aim, -AIM_LIMIT, AIM_LIMIT) * L.gw;
         const ay = L.top + L.gh * 0.5;
         const wide = Math.abs(player.aim) > 1;
@@ -330,7 +288,7 @@ export function createSpotKick() {
 
         // Kick meter beside the ball: how close the knee is to firing.
         const meter = clamp(player.lift / KICK_ON, 0, 1);
-        const mx = L.cx + L.gw * 0.5;
+        const mx = L.cx + Math.min(L.gw * 0.5, 120);
         const mh = Math.min(70, L.H * 0.16);
         ctx.save();
         ctx.fillStyle = "rgba(255,255,255,0.12)";
@@ -361,68 +319,66 @@ export function createSpotKick() {
         spin = k * 9;
         if (player.ball.final === "saved") { bx += (player.t * 140) * Math.sign(player.ball.aim || 1); by += player.t * 90; }
       }
-      if (player.shots.length < this.target || player.phase !== "aim") drawBall(ctx, bx, by, br, spin);
+      drawBall(ctx, bx, by, br, spin);
 
-      // Penalty record: one dot per kick.
-      const count = Math.max(this.practice ? 0 : this.target, player.shots.length);
-      const dotY = Math.min(L.H - 12, L.spotY + 52);
-      for (let i = 0; i < count; i++) {
-        const x = L.cx + (i - (count - 1) / 2) * 18;
-        const shot = player.shots[i];
-        ctx.save();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "rgba(255,255,255,0.4)";
-        ctx.fillStyle = shot === "goal" ? accent : shot === "saved" ? KEEPER : shot === "wide" ? "#6b6f86" : "transparent";
-        ctx.beginPath();
-        ctx.arc(x, dotY, 6, 0, Math.PI * 2);
-        if (shot) ctx.fill(); else ctx.stroke();
-        ctx.restore();
+      // Lives: three balls under the spot; a miss greys one out.
+      if (!this.practice) {
+        const dotY = Math.min(L.H - 14, L.spotY + 52);
+        for (let i = 0; i < LIVES; i++) {
+          const x = L.cx + (i - (LIVES - 1) / 2) * 26;
+          drawBall(ctx, x, dotY, 8, 0, i < LIVES - player.misses ? 1 : 0.2);
+        }
       }
 
       if (player.phase === "result") {
         const k = player.t / RESULT_TIME;
-        const word = player.ball.final === "goal" ? "GOAL!" : player.ball.final === "saved" ? "SAVED!" : "WIDE";
-        const color = player.ball.final === "goal" ? accent : player.ball.final === "saved" ? KEEPER : "#c9cbe0";
-        drawCallout(ctx, L.cx, L.top + L.gh + L.H * 0.16, word, color, k, Math.min(54, L.half * 0.14));
-      } else if (player.shots.length >= this.target && !this.practice) {
-        drawHint(ctx, L.cx, L.H * 0.62, "DONE — WAITING FOR YOUR RIVAL", "rgba(255,255,255,0.7)", false);
+        const final = player.ball.final;
+        const word = final === "goal" ? "GOAL!" : final === "saved" ? "SAVED!" : "WIDE";
+        const color = final === "goal" ? accent : final === "saved" ? KEEPER : "#c9cbe0";
+        drawCallout(ctx, L.cx, L.top + L.gh + L.H * 0.16, word, color, k, Math.min(64, L.W * 0.07));
       }
 
-      if (!player.tracked) drawHint(ctx, L.cx, L.H * 0.62, `PLAYER ${side + 1} — STEP INTO FRAME`, C.amber);
+      if (!player.tracked) drawHint(ctx, L.cx, L.H * 0.62, "STEP INTO FRAME", C.amber);
       else if (!player.legs && player.phase === "aim") drawHint(ctx, L.cx, L.H * 0.62, "STEP BACK — KNEES IN VIEW", C.amber);
+
+      this.fx.draw(ctx);
+      if (shaking) ctx.restore();
     },
 
+    // One player, so the warm-up shows a single slot (coop drill).
     getDrill() {
       return {
-        label: "SCORE 1 PENALTY EACH",
+        label: "SCORE 1 PENALTY",
         tip: "Step to one side to aim, then lift your knee to shoot",
         target: 1,
         progress: this.drill,
-        done: this.drill[0] >= 1 && this.drill[1] >= 1,
+        coop: true,
+        done: this.drill[0] >= 1,
       };
     },
 
     getHud() {
-      const pod = (side) => {
-        const player = this.players[side];
-        const taken = player.shots.length;
-        return {
-          value: player.goals,
-          meta: !player.tracked ? "NO SUBJECT"
-            : this.suddenDeath > 0 ? `SUDDEN DEATH · ${taken} TAKEN`
-            : `${Math.min(taken + (player.phase === "aim" ? 1 : 0), this.target)}/${this.target} · ${player.goals} SCORED`,
-          ratio: clamp(player.goals / Math.max(1, this.target), 0, 1),
-        };
-      };
-      const round = Math.min(this.target, Math.min(...this.players.map((p) => p.shots.length)) + 1);
+      const player = this.player;
+      const lives = LIVES - player.misses;
       return {
-        p1: pod(0),
-        p2: pod(1),
+        p1: {
+          tag: "GOALS",
+          value: player.goals,
+          meta: !player.tracked ? "NO SUBJECT" : player.streak > 1 ? `${player.streak} IN A ROW` : `${player.shots.length} TAKEN`,
+          ratio: clamp(player.goals / Math.max(1, player.shots.length), 0, 1),
+        },
+        p2: {
+          tag: "LIVES",
+          value: lives,
+          meta: lives === 1 ? "LAST CHANCE" : "MISSES LEFT",
+          ratio: lives / LIVES,
+          accent: C.amber,
+        },
         center: {
-          value: this.suddenDeath > 0 ? "SD" : round,
-          label: this.suddenDeath > 0 ? "SUDDEN" : "PENALTY",
-          ratio: clamp(1 - (round - 1) / this.target, 0, 1),
-          danger: this.suddenDeath > 0,
+          value: player.shots.length + (player.phase === "aim" ? 1 : 0),
+          label: "PENALTY",
+          ratio: lives / LIVES,
+          danger: lives === 1,
         },
       };
     },
@@ -430,23 +386,21 @@ export function createSpotKick() {
     isOver() { return this.over; },
 
     getSummary() {
-      const [a, b] = this.players;
-      const winner = a.goals > b.goals ? 1 : b.goals > a.goals ? 2 : null;
-      const row = (p, tag, color) => ({
-        tag,
-        text: `${p.goals} of ${p.shots.length} scored · ${p.shots.filter((s) => s === "saved").length} saved · ${p.shots.filter((s) => s === "wide").length} wide`,
-        value: `${p.goals} goals`,
-        ratio: clamp(p.goals / Math.max(1, p.shots.length), 0, 1),
-        color,
-      });
+      const p = this.player;
+      const saved = p.shots.filter((s) => s === "saved").length;
+      const wide = p.shots.filter((s) => s === "wide").length;
       return {
-        title: winner ? `PLAYER ${winner} WINS` : "DRAW",
-        color: winner === 1 ? C.p1 : winner === 2 ? C.p2 : C.amber,
-        winner,
-        // Level on goals: more shots on target, then the tighter corners.
-        tiebreak: [a.onTarget * 10 + a.cornerSum, b.onTarget * 10 + b.cornerSum],
-        record: Math.max(a.goals, b.goals),
-        rows: [row(a, "P1", C.p1), row(b, "P2", C.p2)],
+        title: p.goals === 1 ? "1 GOAL" : `${p.goals} GOALS`,
+        color: C.p1,
+        winner: null,
+        solo: true,
+        success: p.goals > 0,
+        tiebreak: [0, 0],
+        record: p.goals,
+        rows: [
+          { tag: "YOU", text: `${p.shots.length} penalties · ${saved} saved · ${wide} wide`, value: `${p.goals} goals`, ratio: clamp(p.goals / Math.max(1, p.shots.length), 0, 1), color: C.p1 },
+          { tag: "STREAK", text: "most goals in a row", value: `${p.bestStreak}`, ratio: clamp(p.bestStreak / Math.max(1, p.goals), 0, 1), color: C.amber },
+        ],
       };
     },
   };
@@ -458,7 +412,7 @@ function createStriker() {
     aim: 0, lift: 0, armed: false,
     phase: "aim", t: 0, clock: 0, keeperT: 0,
     ball: null, keeper: { x: 0, dive: 0 },
-    shots: [], goals: 0, onTarget: 0, cornerSum: 0, kicks: 0,
+    shots: [], goals: 0, misses: 0, streak: 0, bestStreak: 0,
   };
 }
 
