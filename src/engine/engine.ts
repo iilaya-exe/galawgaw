@@ -1,5 +1,5 @@
 import { createTracker, type Tracker } from "@/tracking/tracker";
-import { startLocalHighlight, drawLocalHighlight, finishLocalHighlight, pauseLocalHighlight, cancelLocalCapture, useLocalHighlight } from './localHighlights';
+import { startLocalHighlight, drawLocalHighlight, finishLocalHighlight, pauseLocalHighlight, cancelLocalCapture, adaptLocalHighlight, useLocalHighlight } from './localHighlights';
 import { toast } from "sonner";
 import { startPreviews, stopPreviews, measurePreviews } from "@/game/previews.js";
 import { sfx, unlock, isMuted, setMuted } from "@/game/audio.js";
@@ -625,6 +625,7 @@ function considerPerfMode(fps: number, now: number) {
   if (perfLow) return;
   const phase = get().phase;
   if (phase !== "playing" && phase !== "warmup") { perfBadSince = 0; return; }
+  if (adaptLocalHighlight(fps, now)) { perfBadSince = 0; return; }
   if (fps >= PERF_LOW_FPS) { perfBadSince = 0; return; }
   if (perfBadSince === 0) { perfBadSince = now; return; }
   if (now - perfBadSince >= PERF_GRACE_MS) enablePerfMode();
