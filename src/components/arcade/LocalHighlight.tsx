@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLocalHighlight, clearLocalHighlight, enableLocalHighlights, canRecordLocal } from '@/engine/localHighlights';
+import { PublishHighlight } from '@/community/CommunityGate';
 
 export function LocalHighlightSetting() {
   const enabled = useLocalHighlight(s => s.enabled);
@@ -14,5 +15,5 @@ export function LocalHighlight({ onWatch }: { onWatch?: () => void }) {
     try { await navigator.share({ title: 'Our GALAWGAW highlight', files: [file] }); }
     catch (error) { if (!(error instanceof DOMException && error.name === 'AbortError')) setShareMessage('Sharing was unavailable. Download the clip and send it from your photos or files.'); }
   }
-  return <section className="local-highlight"><h3>Your match. The good bit.</h3>{processing ? <p role="status">Finishing your clip…</p> : <>{url && <video key={url} src={url} controls playsInline preload="metadata" onPlay={onWatch} />}<p>{message}</p>{file && <div><a href={url} download={file.name}>Download clip ↓</a>{navigator.canShare?.({ files: [file] }) && <button onClick={() => void share()}>Share clip ↗</button>}<button onClick={clearLocalHighlight}>Discard clip</button></div>}{shareMessage && <p role="status">{shareMessage}</p>}</>}</section>;
+  return <section className="local-highlight"><h3>Your match. The good bit.</h3>{processing ? <p role="status">Finishing your clip…</p> : <>{url && <video data-social-video key={url} src={url} controls playsInline preload="metadata" onPlay={onWatch} />}<p>{message}</p>{file && <div><a href={url} download={file.name}>Download clip ↓</a>{navigator.canShare?.({ files: [file] }) && <button onClick={() => void share()}>Share clip ↗</button>}<PublishHighlight file={file} url={url} onOpen={onWatch}/><button onClick={clearLocalHighlight}>Discard clip</button></div>}{shareMessage && <p role="status">{shareMessage}</p>}</>}</section>;
 }

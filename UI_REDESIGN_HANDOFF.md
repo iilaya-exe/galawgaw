@@ -205,3 +205,38 @@ This section supersedes the earlier working-tree list and visual-only scope for 
 - Still required: real two-device camera/LiveKit recording and rematch check, Safari/iPhone recording compatibility, and low-end phone performance measurement. Cloud services were disabled for local browser tests.
 - Deploy frontend and backend together: the shared online protocol is now version 3. An older backend is intentionally rejected by the new frontend. No new service or environment variable is needed for same-screen recording.
 - Preview used http://127.0.0.1:5174/ with an isolated backend on localhost:2567. No cloud services were used.
+
+## Community follow-up — 16 October 2026
+
+Implemented locally in both repositories. Nothing was deployed, pushed, or enabled in production. Existing gameplay follow-up changes were already present and have been preserved.
+
+### Delivered
+
+- Shared, lazy-loaded Funniest Moments section below the arcade game selection and online entry controls. Six clips per page, Featured/Latest, thumbnails first, on-demand native video, public clip URLs, comments, one laugh reaction, reports and My submissions.
+- Explicit submission from completed same-screen and online highlights. Same-screen media remains local until upload; uploaders confirm everyone's permission. Both online participants must separately consent to the fixed clip/caption. Recording and private sharing do not imply public publication. Either online participant can withdraw.
+- Real PostgreSQL-backed routes, schema/indexes/RLS, server-side ownership and input validation, rate limits, idempotent comments and unique reactions. New clips require moderation. Private credentials, storage paths and share tokens stay out of public JSON.
+- Protected, server-rendered moderation interface with review, approve/feature/reject, comment deletion and report resolution. No admin secret is shipped to the frontend. Disabled by default and unavailable without server configuration.
+- Separate community media worker: bounded MP4/WebM validation, silent 640x360/15 fps local conversion, one-time posters, reuse of rendered online clips, cleanup and recovery. Default 12 MB/30 seconds, 20 daily submissions globally, three per guest, 100 active posts. These limits do not guarantee a provider billing cap.
+- Updated help, privacy and terms copy. Guest identity still lasts 24 hours in the current tab; support/removal instructions explain that limitation.
+
+### Performance preserved
+
+- No changes to tracking workers, camera defaults, inference budgets, game rendering, readiness/countdown logic or server simulation cadence. No app dependencies added.
+- Feed mounts only in menus and loads near the viewport. Comments/viewer load only on demand. No social polling or animation loops. Closing a clip removes its video; starting gameplay unmounts the menu feed. Video processing runs in a separate service.
+- Production community module: about 17.9 KB JavaScript / 5.8 KB gzip, loaded separately. This is not a real-device performance benchmark. Video proxy traffic still uses API bandwidth; staging load testing remains necessary.
+
+### Validation
+
+- Frontend: 11 existing tests passed; TypeScript and production build passed.
+- Backend: 29 existing tests passed earlier in this task, including the real two-player reconnect/round lifecycle test; five new focused checks passed (policy, PostgreSQL HTTP integration, native FFmpeg media integration). TypeScript/production build passed.
+- PostgreSQL tests cover both-participant consent, admin authentication/origin enforcement, ownership, duplicate comments/reactions, pagination, expiry/withdrawal, quota retention and upload request validation. PGlite is installed only in a temporary test directory, not an app dependency. Storage and queue are stubbed in these tests.
+- Real FFmpeg integration accepts MP4 and streaming WebM without duration metadata, produces silent 640x360/15fps video/posters and rejects non-video input.
+- Browser: shared main/online feeds, 390px phone viewport without horizontal overflow, clip metadata/playback readiness, guest access, comment persistence, reaction, report, empty submissions and unavailable-public-clip feedback. Escape removes video and returns keyboard focus to the clip button. Fixed muted text contrast found during visual review.
+- Also checked the featured feed's empty state and a simulated API outage followed by Retry recovery, using the test harness's local-only controls.
+- Preview fixtures are explicitly marked TEST and use synthetic video, not real community activity. Browser harness uses real routes and PostgreSQL operations with local media/queue adapters. It does not test LiveKit, production R2/Redis, or live two-device recording.
+
+### Required before launch
+
+Follow `../Galawgaw_Backend/COMMUNITY_SETUP.md`: apply `migrations/002_community.sql`, configure API/worker feature flag and limits, add a community worker service, configure private moderation credentials/origin, and set the documented R2 cleanup backstop. Keep community disabled until staging passes.
+
+Still needed: actual R2 → Redis worker → moderation → public playback → withdrawal/cleanup round trip, Safari/iPhone recording samples, real low-end device and concurrent game/media load testing. No production service was altered. The local preview on 5175 targets an isolated test service on 26794; do not use that URL in production.

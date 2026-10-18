@@ -8,6 +8,7 @@ import { GameCard } from './GameCard';
 import { Lives } from './Lives';
 import { ArcadeHeader, ArcadeFooter, PartyPose } from './ArcadeShell';
 import { LocalHighlight, LocalHighlightSetting } from './LocalHighlight';
+import { CommunityGate } from '@/community/CommunityGate';
 
 type Filter = 'all' | 'versus' | 'coop' | 'solo' | 'hand' | 'pose';
 const FILTERS: { value: Filter; label: string }[] = [
@@ -52,6 +53,7 @@ export function MenuPage({ hidden }: { hidden: boolean }) {
         <div className="arcade-game-grid">{games.map(meta => <GameCard key={meta.id} meta={meta} best={records[meta.id] ?? 0} />)}</div>
         <p className="arcade-keyboard-hint">Keyboard shortcut: <Kbd>1</Kbd>–<Kbd>9</Kbd> pick a game · <Kbd>G</Kbd> Gauntlet · <Kbd>R</Kbd> shuffle</p>
       </section>
+      {!hidden && <CommunityGate />}
     </main><ArcadeFooter />
   </div>;
 }

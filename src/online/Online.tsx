@@ -8,6 +8,7 @@ import { ONLINE_PROTOCOL } from '../game/onlineProtocol.js';
 import { unlock } from '../game/audio.js';
 import { ArcadeHeader, ArcadeFooter } from '../components/arcade/ArcadeShell';
 import './online.css';
+import { CommunityGate, PublishHighlight } from '../community/CommunityGate';
 
 type Guest = { token: string; id: string; name: string };
 function savedGuest(): Guest | null { try { return JSON.parse(sessionStorage.getItem('galawgaw.guest') || 'null'); } catch { return null; } }
@@ -63,6 +64,8 @@ function OnlineGame() {
   const lastMatch = useRef<string | null>(null);
   const currentMatch = useRef(snapshot);
   currentMatch.current = snapshot;
+
+  useEffect(() => { const changed = () => { if (!room.current) { const next = savedGuest(); setGuest(next); setName(next?.name || ''); } }; window.addEventListener('galawgaw-guest', changed); return () => window.removeEventListener('galawgaw-guest', changed); }, []);
 
   useEffect(() => { if (snapshot?.roomId) window.scrollTo(0, 0); }, [snapshot?.roomId]);
 
@@ -247,6 +250,7 @@ function OnlineGame() {
           <p className="online-fine">Online play shares movement data. If enabled, live video is shared with your partner. A highlight is recorded only when both players opt in.</p>
         </div>
       </div>
+      <CommunityGate />
     </section> : <>
       <section className="online-room-head"><div><p className="online-eyebrow">{snapshot.public ? 'PUBLIC ROOM' : `PRIVATE ROOM · ${snapshot.roomId}`} · {snapshot.game.coop ? 'CO-OP' : 'VERSUS'}</p><h1>{snapshot.phase === 'over' ? (snapshot.game.coop ? snapshot.result?.title : snapshot.winner === null ? 'A draw!' : `${snapshot.players[snapshot.winner].name} wins!`) : snapshot.phase === 'paused' ? 'Waiting for your friend to reconnect…' : snapshot.phase === 'aborted' ? 'The match ended early.' : snapshot.game.title}</h1></div>
         <div className="online-status">{snapshot.recording && <span className="online-recording">● Recording</span>}<span>{connection}</span>{!snapshot.public && <button onClick={() => void copyInvite()}>Copy invite</button>}</div>
@@ -315,7 +319,8 @@ function Clip({ id, token, share }: { id: string; token?: string; share?: string
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Could not retry the highlight.'); }
   }
   return <section className="online-clip"><p className="arcade-eyebrow">WORTH A REPLAY</p><h2>Your match. The good bits.</h2>
-    {clip.url ? <><video controls playsInline src={clip.url} /><div className="online-media-buttons"><a href={clip.url} target="_blank" rel="noreferrer">Open / save MP4</a>{token && !share && <><button onClick={() => void shareClip()}>Share highlight</button><button onClick={() => void api(`/clips/${id}/share`, token, undefined, 'DELETE').then(() => setMessage('Share link disabled.')).catch(e => setMessage(e.message))}>Disable share link</button></>}</div></> : <p>{clip.status === 'failed' ? clip.message || 'The highlight could not be rendered.' : clip.status === 'no-recording' ? 'This match was not recorded.' : 'Making your highlight… You can keep playing.'}</p>}
+    {clip.url && token && !share && <PublishHighlight matchId={id} url={clip.url}/>}
+    {clip.url ? <><video data-social-video controls playsInline src={clip.url} /><div className="online-media-buttons"><a href={clip.url} target="_blank" rel="noreferrer">Open / save MP4</a>{token && !share && <><button onClick={() => void shareClip()}>Share highlight</button><button onClick={() => void api(`/clips/${id}/share`, token, undefined, 'DELETE').then(() => setMessage('Share link disabled.')).catch(e => setMessage(e.message))}>Disable share link</button></>}</div></> : <p>{clip.status === 'failed' ? clip.message || 'The highlight could not be rendered.' : clip.status === 'no-recording' ? 'This match was not recorded.' : 'Making your highlight… You can keep playing.'}</p>}
     {clip.status === 'failed' && token && !share && <button onClick={() => void retryClip()}>Retry highlight</button>}
     {message && <p role="status">{message}</p>}
   </section>;

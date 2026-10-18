@@ -11,19 +11,23 @@ import { returnToMenu } from '@/engine/engine';
 import { startPreviews, stopPreviews } from '@/game/previews.js';
 
 const Online = lazy(() => import('./online/Online').then(module => ({ default: module.Online })));
+const CommunityPage = lazy(() => import('./community/Community').then(module => ({ default: module.CommunityPage })));
 const isOnline = () => location.hash === '#online' || new URLSearchParams(location.search).has('room') || new URLSearchParams(location.search).has('clip');
 
 export default function App() {
   const inGame = useArcade((s) => s.phase !== "menu");
   const [online, setOnline] = useState(isOnline);
-  useEffect(() => { const change = () => setOnline(isOnline()); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change); }, []);
-  useKeyboard(!online);
+  const [community, setCommunity] = useState(() => new URLSearchParams(location.search).has('moment'));
+  useEffect(() => { const change = () => {setOnline(isOnline());setCommunity(new URLSearchParams(location.search).has('moment'));}; window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change); }, []);
+  useKeyboard(!online && !community);
   useEffect(() => {
-    if (online) {
+    if (online || community) {
       if (useArcade.getState().phase !== 'menu') returnToMenu();
       stopPreviews();
     } else startPreviews('menu');
-  }, [online]);
+  }, [online, community]);
+
+  if (community) return <Suspense fallback={<p>Opening this moment…</p>}><CommunityPage /></Suspense>;
 
   if (online) return <Suspense fallback={<div role="status" className="p-12 text-center">Opening online play…</div>}><Online /></Suspense>;
 
