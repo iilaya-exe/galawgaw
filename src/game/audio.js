@@ -28,6 +28,17 @@ export function unlock() {
   if (context && context.state === "suspended") context.resume();
 }
 
+// A recording-only mix: microphone never connects to the speakers.
+export function mixRecordingAudio(microphone) {
+  const context = ensure();
+  if (!context) return { stream: microphone, release() {} };
+  const destination = context.createMediaStreamDestination();
+  const source = context.createMediaStreamSource(microphone);
+  source.connect(destination);
+  master.connect(destination);
+  return { stream: destination.stream, release() { source.disconnect(); master.disconnect(destination); destination.stream.getTracks().forEach(t => t.stop()); } };
+}
+
 export function isMuted() {
   return muted;
 }

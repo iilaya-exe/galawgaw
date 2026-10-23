@@ -85,6 +85,10 @@ export function stopPreviews() {
 /* ── Per-game renderers ─────────────────────────────────────────── */
 
 const RENDERERS = {
+  penaltyduel(ctx, w, h, t) {
+    RENDERERS.spotkick(ctx, w, h, t);
+    drawGlove(ctx, w * (.5 + Math.sin(t * 2) * .22), h * .4, Math.min(w, h) * .1, C.p2, 0, false, false);
+  },
   // A penalty: the ball flies to alternating corners; the keeper guesses,
   // and gets one of every two.
   spotkick(ctx, w, h, t) {

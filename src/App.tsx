@@ -9,6 +9,7 @@ import { useKeyboard } from "@/hooks/useKeyboard";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { returnToMenu } from '@/engine/engine';
 import { startPreviews, stopPreviews } from '@/game/previews.js';
+import { LocalRecordingPrompt } from '@/components/arcade/LocalHighlight';
 
 const Online = lazy(() => import('./online/Online').then(module => ({ default: module.Online })));
 const CommunityPage = lazy(() => import('./community/Community').then(module => ({ default: module.CommunityPage })));
@@ -37,6 +38,7 @@ export default function App() {
         <div className="app-backdrop" aria-hidden="true" />
         <MenuPage hidden={inGame} />
         <Stage />
+        <LocalRecordingPrompt />
         <RotateGate />
         <Toaster
           position="top-center"

@@ -1,5 +1,5 @@
 import { createTracker, type Tracker } from "@/tracking/tracker";
-import { startLocalHighlight, drawLocalHighlight, finishLocalHighlight, pauseLocalHighlight, cancelLocalCapture, adaptLocalHighlight, useLocalHighlight } from './localHighlights';
+import { startLocalHighlight, drawLocalHighlight, finishLocalHighlight, pauseLocalHighlight, cancelLocalCapture, adaptLocalHighlight, useLocalHighlight, requestLocalRecording, cancelLocalRecordingChoice } from './localHighlights';
 import { toast } from "sonner";
 import { startPreviews, stopPreviews, measurePreviews } from "@/game/previews.js";
 import { sfx, unlock, isMuted, setMuted } from "@/game/audio.js";
@@ -397,6 +397,12 @@ async function launch(factory: GameFactory | null) {
   finishWarmup();          // release a warm-up left over from a prior launch
   stopLoop();
   currentGame = selectedFactory();
+  cancelAutoNext();
+  cancelLocalCapture();
+  setPhase("recording-choice");
+  const proceed = await requestLocalRecording();
+  if (token !== sequenceToken) return;
+  if (!proceed) { returnToMenu(); return; }
   resetHud();
   set({ steps: { cam: "active", model: "pending", cal: "pending" }, result: null });
   setPhase("loading");
@@ -415,6 +421,7 @@ async function launch(factory: GameFactory | null) {
     console.error(error);
     if (token !== sequenceToken) return;
     stopCamera();
+    cancelLocalCapture();
     const name = (error as { name?: string } | null)?.name;
     set({
       error: name === "NotAllowedError"
@@ -460,7 +467,7 @@ function countdown(token: number) {
         setTimeout(() => {
           if (token !== sequenceToken) return resolve();
           setPhase("playing");
-          startLocalHighlight(game.title);
+          startLocalHighlight(game.title, game.id);
           lastFrameTime = performance.now();
           resolve();
         }, 620);
@@ -786,6 +793,7 @@ export function cancelAutoNext() {
 }
 
 export function returnToMenu() {
+  cancelLocalRecordingChoice();
   cancelLocalCapture();
   sequenceToken++;
   finishWarmup();          // release any awaiting launch

@@ -7,7 +7,7 @@ import { Kbd } from '@/components/ui/kbd';
 import { GameCard } from './GameCard';
 import { Lives } from './Lives';
 import { ArcadeHeader, ArcadeFooter, PartyPose } from './ArcadeShell';
-import { LocalHighlight, LocalHighlightSetting } from './LocalHighlight';
+import { LocalHighlight } from './LocalHighlight';
 import { CommunityGate } from '@/community/CommunityGate';
 
 type Filter = 'all' | 'versus' | 'coop' | 'solo' | 'hand' | 'pose';
@@ -45,7 +45,6 @@ export function MenuPage({ hidden }: { hidden: boolean }) {
         <div className="gauntlet-lives"><span>P1 <Lives side={1} lives={3} /></span><span>P2 <Lives side={2} lives={3} /></span></div>
         <div className="gauntlet-actions"><Button size="lg" onClick={startGauntlet} className="bg-amber text-ink hover:bg-amber/90">Play same screen <ArrowRight /></Button><a href="?mode=gauntlet#online">Take it online ↗</a></div>
       </section>
-      <LocalHighlightSetting />
       {!hidden && <LocalHighlight />}
       <section id="games" className="arcade-games" aria-labelledby="games-title">
         <div className="arcade-section-heading"><div><p className="arcade-eyebrow">SAME SCREEN / SIDE BY SIDE</p><h2 id="games-title">Pick your next bad idea.</h2></div><Button variant="outline" onClick={startShuffle}><Dices /> Surprise me</Button></div>

@@ -9,6 +9,7 @@ import { unlock } from '../game/audio.js';
 import { ArcadeHeader, ArcadeFooter } from '../components/arcade/ArcadeShell';
 import './online.css';
 import { CommunityGate, PublishHighlight } from '../community/CommunityGate';
+import { RecordingPrompt, type RecordingChoice } from '../components/arcade/RecordingPrompt';
 
 type Guest = { token: string; id: string; name: string };
 function savedGuest(): Guest | null { try { return JSON.parse(sessionStorage.getItem('galawgaw.guest') || 'null'); } catch { return null; } }
@@ -36,6 +37,9 @@ function OnlineGame() {
   const [performanceInfo, setPerformanceInfo] = useState({ ping: null as number | null, gap: 0, tick: 0, fps: 0, tracking: 0, background: false });
   const [tracked, setTracked] = useState(false);
   const [consent, setConsent] = useState(false);
+  const [recordingPrompt, setRecordingPrompt] = useState(false);
+  const recordingDecision = useRef(0);
+  const recordingPending = useRef(false);
   const [mic, setMic] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [connection, setConnection] = useState('');
@@ -78,7 +82,7 @@ function OnlineGame() {
     const hadCamera = !!camera.current;
     cameraAbort.current?.abort(); camera.current?.close(); camera.current = null;
     const oldMedia = media.current; media.current = null;
-    localInput.current = null; setTracked(false); setCameraReady(false); setMic(false); setConsent(false);
+    cancelRecordingPrompt(); localInput.current = null; setTracked(false); setCameraReady(false); setMic(false); setConsent(false);
     setAudioEnabled(false); setCameraBusy(false);
     const matchId = snapshot.matchId;
     void Promise.resolve(oldMedia?.disconnect()).then(() => {
@@ -87,6 +91,7 @@ function OnlineGame() {
   }, [snapshot?.matchId]);
 
   const clean = () => {
+    recordingDecision.current++;
     localInput.current = null;
     networkStats.current = { ping: null, gap: 0, tick: 0, receivedAt: 0, nonce: 0 };
     cameraAbort.current?.abort(); cameraAbort.current = null;
@@ -213,7 +218,28 @@ function OnlineGame() {
     try { await media.current?.localParticipant.setMicrophoneEnabled(!mic); setMic(!mic); }
     catch { setError('Microphone permission was denied. You can still play.'); }
   }
+  async function chooseRecording(choice: RecordingChoice) {
+    if (recordingPending.current) throw new Error('Microphone setup is still pending.');
+    const decision = ++recordingDecision.current;
+    const activeRoom = room.current, videoRoom = media.current;
+    if (!activeRoom) return;
+    recordingPending.current = true;
+    try {
+      if (choice === 'audio' && !videoRoom) throw new Error('Camera sharing must be connected first.');
+      if (videoRoom && choice !== 'off') await videoRoom.localParticipant.setMicrophoneEnabled(choice === 'audio');
+      if (decision !== recordingDecision.current || room.current !== activeRoom || !alive.current) {
+        if (videoRoom && choice === 'audio') await videoRoom.localParticipant.setMicrophoneEnabled(false);
+        if (alive.current && media.current === videoRoom) setMic(false);
+        return;
+      }
+      if (choice !== 'off') setMic(choice === 'audio');
+      setConsent(choice !== 'off'); setRecordingPrompt(false);
+      activeRoom.send('ready', { ready: true, recordingConsent: choice !== 'off' });
+    } finally { recordingPending.current = false; }
+  }
+  function cancelRecordingPrompt() { recordingDecision.current++; setRecordingPrompt(false); }
   function leave() {
+    cancelRecordingPrompt();
     clean(); setSnapshot(null); setCameraReady(false); setCameraBusy(false); setMic(false); setTracked(false); setConsent(false); setReport(false); setConnection('');
   }
   async function copyInvite() {
@@ -222,6 +248,7 @@ function OnlineGame() {
   }
 
   return <div className="online">
+    {recordingPrompt && snapshot?.phase === 'lobby' && <RecordingPrompt online available={snapshot.highlightsEnabled && snapshot.mediaEnabled} onChoose={chooseRecording} onCancel={cancelRecordingPrompt} />}
     <ArcadeHeader online onHome={() => { leave(); exitOnline(); }} action={snapshot ? <button onClick={leave}>Leave room</button> : undefined} />
     <main className="online-content">
     {error && <div role="alert" className="online-error">{error}<button aria-label="Dismiss message" onClick={() => setError('')}>×</button></div>}
@@ -266,9 +293,8 @@ function OnlineGame() {
           {!cameraReady && <label>Camera quality<select value={lowVideo ? 'light' : 'standard'} disabled={cameraBusy} onChange={e => setLowVideo(e.target.value === 'light')}><option value="light">Lighter video (recommended)</option><option value="standard">Sharper video</option></select></label>}
           {!cameraReady && <button className="online-primary" disabled={cameraBusy} onClick={() => void enableCamera()}>{cameraBusy ? 'Starting camera and tracking…' : snapshot.mediaEnabled ? 'Enable & share my camera' : 'Enable my camera'}</button>}
           {cameraReady && <p>{tracked ? '✓ Movement tracked. You’re ready.' : snapshot.game.mode === 'hand' ? 'Show your hands to the camera.' : 'Step into frame with your hands and hips visible.'}</p>}
-          {snapshot.highlightsEnabled && <label className="online-consent"><input type="checkbox" checked={consent} disabled={me?.ready} onChange={e => setConsent(e.target.checked)} />Allow recording of my camera and enabled microphone for a highlight that either player can share. Highlight access expires after 30 days. See the <a href="./privacy/#retention" target="_blank" rel="noopener noreferrer">Privacy Policy</a> for storage and deletion.</label>}
           {!snapshot.mediaEnabled && <p className="online-fine">Live cameras are not connected on this server. You’ll see your friend’s tracked movements instead.</p>}
-          {cameraReady && <><button className="online-primary" onClick={() => room.current?.send('ready', { ready: !me?.ready, recordingConsent: consent })}>{me?.ready ? 'Cancel ready' : 'Get ready — then step into position'}</button><p role="status">{me?.ready ? 'You can step away from the controls now. Hold your position; when both players are in frame, the 3-second countdown starts.' : 'Choose your recording preference, then get ready. No need to hold a pose while pressing a button.'}</p><div className="online-position-status">{snapshot.players.map((p, i) => <span key={p.id} data-ready={p.ready && snapshot.positioned?.[i]}>{p.name}: {!p.ready ? 'not ready yet' : snapshot.positioned?.[i] ? 'in position ✓' : snapshot.game.mode === 'hand' ? `show ${snapshot.game.hands === 2 ? 'both hands' : 'one hand'} in frame` : 'show shoulders, hips and hands'}</span>)}</div></>}
+          {cameraReady && <><button className="online-primary" onClick={() => { if (me?.ready) room.current?.send('ready', { ready: false, recordingConsent: consent }); else if (snapshot.highlightsEnabled) setRecordingPrompt(true); else void chooseRecording('off'); }}>{me?.ready ? 'Cancel ready' : 'Get ready — then step into position'}</button><p role="status">{me?.ready ? 'You can step away from the controls now. Hold your position; when both players are in frame, the 3-second countdown starts.' : 'Press Get ready to choose whether to record this round. No need to hold a pose while pressing a button.'}</p><div className="online-position-status">{snapshot.players.map((p, i) => <span key={p.id} data-ready={p.ready && snapshot.positioned?.[i]}>{p.name}: {!p.ready ? 'not ready yet' : snapshot.positioned?.[i] ? 'in position ✓' : snapshot.game.mode === 'hand' ? `show ${snapshot.game.hands === 2 ? 'both hands' : 'one hand'} in frame` : 'show shoulders, hips and hands'}</span>)}</div></>}
         </>}
         {snapshot.phase === 'preparing' && <p>Preparing the match{consent ? ' and recordings' : ''}…</p>}
         {snapshot.phase === 'countdown' && <button onClick={() => room.current?.send('ready', { ready: false, recordingConsent: consent })}>Cancel countdown</button>}

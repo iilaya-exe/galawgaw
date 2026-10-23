@@ -1,0 +1,11 @@
+.recording-prompt { margin:auto; width:min(480px,calc(100% - 32px)); max-height:calc(100dvh - 32px); overflow:auto; padding:clamp(20px,4vw,32px); border:1px solid var(--p1); border-radius:16px; background:var(--ink,#0c1020); color:var(--text,#eceefa); }
+.recording-prompt::backdrop { background:rgb(3 6 15 / .85); }
+.recording-prompt h2 { font-family:'Space Grotesk',sans-serif; font-size:clamp(26px,5vw,34px); margin:10px 0 16px; }
+.recording-prompt p { line-height:1.55; margin-bottom:16px; }
+.recording-prompt .recording-note { font-size:13px; color:#b4bfd7; }
+.recording-choices { display:grid; gap:10px; }
+.recording-prompt button { min-height:44px; padding:10px 14px; border:1px solid #55617a; border-radius:8px; font-weight:650; cursor:pointer; }
+.recording-choices button:first-child { background:var(--p1); color:#080b15; border-color:var(--p1); }
+.recording-prompt button:disabled { opacity:.5; cursor:wait; }
+.recording-prompt button:focus-visible,.recording-prompt a:focus-visible { outline:3px solid var(--p2); outline-offset:3px; }
+.recording-footer { display:flex; align-items:center; justify-content:space-between; margin-top:18px; font-size:13px; }

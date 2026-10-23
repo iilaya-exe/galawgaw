@@ -6,7 +6,7 @@ import { create } from "zustand";
    nothing else.
    ═══════════════════════════════════════════════════════════════════ */
 
-export type Phase = "menu" | "loading" | "warmup" | "countdown" | "playing" | "paused" | "over" | "error";
+export type Phase = "menu" | "recording-choice" | "loading" | "warmup" | "countdown" | "playing" | "paused" | "over" | "error";
 export type PlayMode = "single" | "shuffle" | "gauntlet";
 export type StepState = "pending" | "active" | "done";
 export type SlotState = "waiting" | "tracked" | "done";

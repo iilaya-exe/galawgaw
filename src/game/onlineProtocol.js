@@ -10,10 +10,11 @@ import { createBeamDodge } from './beamDodge.js';
 import { createTugOfWar } from './tugOfWar.js';
 import { createVaultSync } from './vaultSync.js';
 import { createEcho } from './echoGame.js';
+import { createPenaltyDuel } from './penaltyDuel.js';
 
-export const ONLINE_PROTOCOL = 3;
+export const ONLINE_PROTOCOL = 4;
 export const FACTORIES = [createSignalPop, createWhackAMole, createCopyPose, createIceBreaker,
-  createHullBreach, createFreezeFrame, createBeamDodge, createTugOfWar, createVaultSync, createEcho];
+  createHullBreach, createFreezeFrame, createBeamDodge, createTugOfWar, createVaultSync, createEcho, createPenaltyDuel];
 export const ONLINE_GAMES = FACTORIES.map(factory => {
   const g = factory();
   return { id: g.id, title: g.title, icon: g.icon, blurb: g.blurb, mode: g.mode,
@@ -74,6 +75,7 @@ export function gameMetrics(game, side) {
     case 'tugofwar': return { score: Math.round(game.work[side]), misses: 0 };
     case 'vaultsync': return { score: game.cracked, misses: 0 };
     case 'echo': return { score: p.cleared * 100 + p.step, misses: p.out ? 1 : 0 };
+    case 'penaltyduel': return { score: p.goals, misses: p.shots.length - p.goals };
     default: return { score: 0, misses: 0 };
   }
 }

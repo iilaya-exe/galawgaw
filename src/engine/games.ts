@@ -10,6 +10,7 @@ import { createVaultSync } from "@/game/vaultSync.js";
 import { createEcho } from "@/game/echoGame.js";
 import { createSpotKick } from "@/game/spotKick.js";
 import { createSuperSave } from "@/game/superSave.js";
+import { createPenaltyDuel } from "@/game/penaltyDuel.js";
 import type { GameMeta } from "./store";
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -48,7 +49,7 @@ export type GameFactory = () => GameInstance;
 export const GAMES: GameFactory[] = [
   createSignalPop, createWhackAMole, createCopyPose, createIceBreaker, createHullBreach,
   createFreezeFrame, createBeamDodge, createTugOfWar, createVaultSync, createEcho,
-  createSpotKick, createSuperSave,
+  createSpotKick, createSuperSave, createPenaltyDuel,
 ] as GameFactory[];
 
 // Metadata is stable, so build it once instead of re-instantiating games.
