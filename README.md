@@ -7,24 +7,6 @@ the separate Galawgaw_Backend server for movement, rooms and scoring, with
 optional live camera sharing and opt-in cloud highlights.
 
 ## Online development
-
-Run `npm install` and `npm run dev` in both repositories. Open
-`http://localhost:5173/#online`, create a private room and send its invite to
-a second browser tab. Camera access on another device requires HTTPS.
-Choose a game before creating a room or finding a public opponent. Joining an
-invite uses the host's game. The server runs the same game modules as local play,
-including Copy the Pose's expanded library and the two cooperative games.
-
-After changing `src/game`, run `node scripts/sync-games.mjs` in the backend repo
-to update its vendored rules. Both deployments share online protocol version 2.
-Deploy the backend and highlight worker before the frontend; the online page
-will explain a version mismatch instead of trying to play incompatible rules.
-
-No cloud credentials are needed for local room and movement testing. For
-live video and highlights, follow `SETUP.md` in Galawgaw_Backend. Configure
-`VITE_API_URL` in `.env` locally or as a GitHub Actions repository variable
-for production builds. It is a public URL, not a secret.
-
 deybsuanwashere
 
 ## Games
